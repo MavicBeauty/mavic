@@ -24,14 +24,19 @@ export async function POST(request: NextRequest) {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    console.log('Attempting Supabase login with:', email);
+
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
+    console.log('Supabase response:', { error, user: data?.user?.email });
+
     if (error) {
+      console.error('Supabase error:', error);
       return NextResponse.json(
-        { error: error.message },
+        { error: `Supabase error: ${error.message}` },
         { status: 401 }
       );
     }
