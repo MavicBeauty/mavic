@@ -11,8 +11,11 @@ export default function EsHome() {
     <div className="min-h-screen bg-white">
       {/* Navigation */}
       <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm z-50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <div className="text-2xl font-bold text-mavic-pink">MAVIC</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center">
+          <Link href="/es" className="flex items-center gap-2 hover:opacity-80 transition">
+            <Image src="/mavic-logo.png" alt="MAVIC" width={40} height={40} />
+            <span className="text-lg font-bold text-mavic-pink">MAVIC</span>
+          </Link>
           <div className="flex items-center gap-8">
             <a href="#servicios" className="text-sm font-medium hover:text-mavic-pink transition">
               Servicios
