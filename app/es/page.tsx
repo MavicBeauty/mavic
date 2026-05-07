@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 export default function EsHome() {
@@ -57,9 +58,14 @@ export default function EsHome() {
       <section className="pt-32 pb-20 px-4 bg-gradient-to-b from-mavic-pink-light to-white">
         <div className="max-w-4xl mx-auto text-center">
           <div className="mb-6 flex justify-center">
-            <div className="w-24 h-24 bg-mavic-pink rounded-full flex items-center justify-center">
-              <span className="text-4xl font-bold text-white">M</span>
-            </div>
+            <Image
+              src="/mavic-logo.png"
+              alt="MAVIC Logo"
+              width={120}
+              height={120}
+              priority
+              className="rounded-full"
+            />
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-mavic-black mb-4">
             MAVIC Beauty & Nails
