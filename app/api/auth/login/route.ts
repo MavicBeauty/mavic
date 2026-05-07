@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -12,7 +12,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient();
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -26,13 +36,26 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (!data.session) {
+      return NextResponse.json(
+        { error: 'No session created' },
+        { status: 401 }
+      );
+    }
+
+    // Return success - client will handle session
     return NextResponse.json(
-      { success: true, user: data.user },
+      {
+        success: true,
+        user: data.user,
+        session: data.session
+      },
       { status: 200 }
     );
-  } catch (error) {
+  } catch (error: any) {
+    console.error('Login error:', error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: error?.message || 'Internal server error' },
       { status: 500 }
     );
   }
