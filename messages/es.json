@@ -1,0 +1,64 @@
+{
+  "nav": {
+    "services": "Servicios",
+    "pricing": "Precios",
+    "giftCards": "Tarjetas Regalo",
+    "contact": "Contacto"
+  },
+  "hero": {
+    "title": "MAVIC Beauty & Nails",
+    "subtitle": "Salón de Estética, Belleza y Mucho Más",
+    "cta": "Pide tu cita",
+    "description": "Especialistas en manicura, pedicura, depilación láser y tratamientos de belleza profesionales."
+  },
+  "services": {
+    "title": "Nuestros Servicios",
+    "subtitle": "Todos nuestros servicios realizados por profesionales certificadas"
+  },
+  "pricing": {
+    "title": "Nuestros Precios",
+    "subtitle": "Consulta nuestras tarifas actuales"
+  },
+  "promotions": {
+    "title": "Ofertas Especiales",
+    "subtitle": "Descubre nuestras promociones vigentes"
+  },
+  "giftCards": {
+    "title": "Tarjetas Regalo",
+    "subtitle": "Regala belleza y bienestar",
+    "cta": "Comprar Tarjeta Regalo"
+  },
+  "contact": {
+    "title": "Contacto",
+    "hours": "Horario",
+    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
+    "address": "Plaça de l'Església, 11",
+    "city": "08110 Montcada i Reixac, Barcelona",
+    "whatsapp": "Contactar por WhatsApp",
+    "instagram": "Síguenos en Instagram",
+    "booksy": "Ver citas en Booksy"
+  },
+  "footer": {
+    "address": "Plaça de l'Església, 11, 08110 Montcada i Reixac, Barcelona",
+    "phone": "+34 643 59 19 84",
+    "instagram": "@mavicnailscenter",
+    "hours": "L-V 9:00-20:30 | S 10:00-14:00",
+    "rights": "Todos los derechos reservados"
+  },
+  "admin": {
+    "login": "Acceso Administrador",
+    "email": "Correo",
+    "password": "Contraseña",
+    "signIn": "Iniciar Sesión",
+    "signOut": "Cerrar Sesión",
+    "dashboard": "Panel de Control",
+    "clients": "Clientes",
+    "services": "Servicios",
+    "promotions": "Ofertas",
+    "giftCards": "Tarjetas Regalo",
+    "employees": "Empleados",
+    "loading": "Cargando...",
+    "error": "Error al conectar",
+    "success": "¡Éxito!"
+  }
+}
