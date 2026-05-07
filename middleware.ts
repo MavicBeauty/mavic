@@ -3,6 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Skip middleware for admin routes and API routes
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api')) {
+    return NextResponse.next();
+  }
+
   // If root path, redirect to /es
   if (pathname === '/') {
     return NextResponse.redirect(new URL('/es', request.url));
@@ -25,5 +30,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next|static|.*\\..*).*)']
+  matcher: ['/((?!api|_next|static|public|.*\\..*).*)']
 };
