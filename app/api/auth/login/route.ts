@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 
 export async function POST(request: NextRequest) {
@@ -22,38 +21,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    console.log('Attempting login with email:', email);
 
-    console.log('Attempting Supabase login with:', email);
-
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
+    // Use Supabase REST API directly
+    const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': supabaseKey,
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
     });
 
-    console.log('Supabase response:', { error, user: data?.user?.email });
+    const data = await response.json();
 
-    if (error) {
-      console.error('Supabase error:', error);
+    console.log('Auth response status:', response.status);
+    console.log('Auth response:', data);
+
+    if (!response.ok) {
       return NextResponse.json(
-        { error: `Supabase error: ${error.message}` },
+        { error: data.error_description || data.error || 'Authentication failed' },
         { status: 401 }
       );
     }
 
-    if (!data.session) {
-      return NextResponse.json(
-        { error: 'No session created' },
-        { status: 401 }
-      );
-    }
-
-    // Return success - client will handle session
+    // Success
     return NextResponse.json(
       {
         success: true,
+        access_token: data.access_token,
         user: data.user,
-        session: data.session
       },
       { status: 200 }
     );
