@@ -9,8 +9,8 @@ export async function GET() {
 
     const response = await fetch(`${supabaseUrl}/auth/v1/user`, {
       headers: {
-        'Authorization': `Bearer ${supabaseKey}`,
-        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey || ''}`,
+        'apikey': supabaseKey || '',
       },
     });
 
