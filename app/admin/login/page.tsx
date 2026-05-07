@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { signInWithEmail } from '@/lib/auth';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,16 +16,27 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
 
-    const result = await signInWithEmail(email, password);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (!result.success) {
-      setError(result.error || 'Error al iniciar sesión');
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || 'Error al iniciar sesión');
+        setLoading(false);
+        return;
+      }
+
+      // Login successful
+      router.push('/admin/dashboard');
+    } catch (err) {
+      setError('Error de conexión');
       setLoading(false);
-      return;
     }
-
-    // Login successful, redirect to dashboard
-    router.push('/admin/dashboard');
   };
 
   return (
@@ -33,8 +44,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-mavic-pink rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <span className="text-4xl font-bold text-white">M</span>
+          <div className="w-20 h-20 mx-auto mb-4">
+            <Image src="/mavic-logo.png" alt="MAVIC" width={80} height={80} />
           </div>
           <h1 className="text-3xl font-bold text-mavic-black mb-2">MAVIC Admin</h1>
           <p className="text-gray-600">Acceso Administrador</p>
