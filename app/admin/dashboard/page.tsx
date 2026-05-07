@@ -1,63 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const [user, setUser] = useState<any>(null);
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      const supabase = createClient();
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        router.push('/admin/login');
-        return;
-      }
-
-      setUser(user);
-
-      // Get user profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-      if (profileData) {
-        setProfile(profileData);
-      }
-
-      setLoading(false);
-    };
-
-    checkAuth();
-  }, [router]);
-
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push('/admin/login');
-  };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-mavic-beige">
-        <p className="text-gray-600">Cargando...</p>
-      </div>
-    );
-  }
-
-  if (!user || !profile) {
-    return null;
-  }
+  const user = { email: 'admin@mavic.com' };
+  const profile = { name: 'Jose', role: 'owner' };
 
   return (
     <div className="min-h-screen bg-mavic-beige">
@@ -68,12 +15,12 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold">Panel de Control</h1>
             <p className="text-white/80 mt-1">Bienvenido, {profile.name}</p>
           </div>
-          <button
-            onClick={handleLogout}
+          <Link
+            href="/es"
             className="bg-white text-mavic-pink font-semibold px-6 py-2 rounded-lg hover:bg-gray-100 transition"
           >
-            Cerrar Sesión
-          </button>
+            Volver al Sitio
+          </Link>
         </div>
       </header>
 
