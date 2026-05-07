@@ -17,13 +17,18 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login...', { email });
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
+      console.log('Response status:', response.status);
+
       const data = await response.json();
+      console.log('Response data:', data);
 
       if (!response.ok) {
         setError(data.error || 'Error al iniciar sesión');
@@ -31,8 +36,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Login successful
-      router.push('/admin/dashboard');
+      // Login successful - for now just show success
+      setError('');
+      alert('Login successful! (Redirect coming soon)');
+      // router.push('/admin/dashboard');
     } catch (err) {
       setError('Error de conexión');
       setLoading(false);
