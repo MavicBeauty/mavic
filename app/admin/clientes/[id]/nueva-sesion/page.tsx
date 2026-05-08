@@ -32,13 +32,15 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
 
     if (type === 'checkbox') {
       const [section, key] = name.split('.');
-      setFormData({
-        ...formData,
-        [section]: {
-          ...formData[section as keyof typeof formData],
-          [key]: (e.target as HTMLInputElement).checked,
-        },
-      });
+      if (section === 'adverse_reactions') {
+        setFormData({
+          ...formData,
+          adverse_reactions: {
+            ...formData.adverse_reactions,
+            [key as keyof typeof formData.adverse_reactions]: (e.target as HTMLInputElement).checked,
+          },
+        });
+      }
     } else {
       setFormData({
         ...formData,
