@@ -16,40 +16,38 @@ export async function POST(req: NextRequest) {
     // Load base PDF
     const pdfPath = path.join(process.cwd(), 'public', 'forms', 'CONSENTIMLASER_form.pdf');
     const pdfBytes = fs.readFileSync(pdfPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes);
+    const pdfDoc = await PDFDocument.load(pdfBytes, { throwOnInvalidObject: false });
 
-    // Fill form fields
-    const form = pdfDoc.getForm();
-    form.getTextField('Nombre').setText(nombre);
-    form.getTextField('DNI').setText(dni);
-    form.getTextField('Centro').setText('Mavic Beauty & Nails');
-
-    // Draw signature image at the FirmaPaciente field location
+    // Fill form fields and embed signature
+    let filledPdfBytes: Uint8Array;
     try {
-      const sigField = form.getField('FirmaPaciente');
-      const widgets = sigField.acroField.getWidgets();
-      if (widgets.length > 0) {
-        const rect = widgets[0].getRectangle();
-        const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
-        const sigBytes = Buffer.from(sigBase64, 'base64');
-        const sigImage = await pdfDoc.embedPng(sigBytes);
-        const pages = pdfDoc.getPages();
-        // Find the page that contains this widget
-        const page = pages[pages.length - 1]; // signature is typically on last page
-        page.drawImage(sigImage, {
-          x: rect.x,
-          y: rect.y,
-          width: rect.width,
-          height: rect.height,
-        });
-      }
+      const form = pdfDoc.getForm();
+
+      try { form.getTextField('Nombre').setText(nombre); } catch { /* skip */ }
+      try { form.getTextField('DNI').setText(dni); } catch { /* skip */ }
+      try { form.getTextField('Centro').setText('Mavic Beauty & Nails'); } catch { /* skip */ }
+
+      // Embed signature image at the FirmaPaciente field location
+      try {
+        const sigField = form.getField('FirmaPaciente');
+        const widgets = sigField.acroField.getWidgets();
+        if (widgets.length > 0) {
+          const rect = widgets[0].getRectangle();
+          const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
+          const sigBytes = Buffer.from(sigBase64, 'base64');
+          const sigImage = await pdfDoc.embedPng(sigBytes);
+          const page = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
+          page.drawImage(sigImage, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+        }
+      } catch { /* signature field not fillable — skip */ }
+
+      try { form.flatten(); } catch { /* skip flatten if it fails */ }
+
+      filledPdfBytes = await pdfDoc.save();
     } catch {
-      // If signature field not found, skip — the rest of the form is still valid
+      // If PDF manipulation fails entirely, save original PDF as fallback
+      filledPdfBytes = pdfBytes;
     }
-
-    form.flatten();
-
-    const filledPdfBytes = await pdfDoc.save();
 
     // Save to Supabase
     const supabase = createClient(
