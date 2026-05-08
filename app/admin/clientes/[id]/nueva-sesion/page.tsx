@@ -3,7 +3,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
 
 export default function NuevaSesionPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -51,23 +50,21 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
     setLoading(true);
     setError('');
 
-    const supabase = createClient();
-    const { session_date, ...rest } = formData;
-    const { error: dbError } = await supabase.from('clinical_sessions').insert([
-      {
-        client_id: params.id,
-        session_date,
-        form_data: rest,
-      },
-    ]);
-
-    if (dbError) {
-      setError('Error al guardar la sesión: ' + dbError.message);
+    try {
+      const res = await fetch('/api/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_id: params.id, ...formData }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Error al guardar');
+      }
+      router.push(`/admin/clientes/${params.id}`);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error al guardar');
       setLoading(false);
-      return;
     }
-
-    router.push(`/admin/clientes/${params.id}`);
   };
 
   const adverseReactionLabels: Record<string, string> = {
@@ -106,69 +103,55 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Sesión *</label>
-                  <input
-                    type="date"
-                    name="session_date"
-                    value={formData.session_date}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    required
-                    disabled={loading}
-                  />
+                  <input type="date" name="session_date" value={formData.session_date} onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                    required disabled={loading} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Número de Sesión</label>
-                  <input
-                    type="number"
-                    name="sesion_number"
-                    value={formData.sesion_number}
-                    onChange={handleChange}
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    disabled={loading}
-                  />
+                  <input type="number" name="sesion_number" value={formData.sesion_number} onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                    disabled={loading} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Zonas Tratadas *</label>
-                  <input
-                    type="text"
-                    name="zonas"
-                    value={formData.zonas}
-                    onChange={handleChange}
+                  <input type="text" name="zonas" value={formData.zonas} onChange={handleChange}
                     placeholder="Ej: Piernas, Brazos"
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    required
-                    disabled={loading}
-                  />
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                    required disabled={loading} />
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Potencia/Energía (J)</label>
-                  <input
-                    type="text"
-                    name="power"
-                    value={formData.power}
-                    onChange={handleChange}
+                  <input type="text" name="power" value={formData.power} onChange={handleChange}
                     placeholder="Ej: 18"
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    disabled={loading}
-                  />
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                    disabled={loading} />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">FOT</label>
+                  <input type="text" name="fot" value={formData.fot} onChange={handleChange}
+                    placeholder="Ej: 12"
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                    disabled={loading} />
                 </div>
               </div>
             </div>
 
             <div>
               <h2 className="text-xl font-bold text-mavic-black mb-4">Reacciones Adversas / Contraindicaciones</h2>
-              <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-gray-50 p-4 rounded-lg">
                 {Object.entries(adverseReactionLabels).map(([key, label]) => (
-                  <label key={key} className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name={`adverse_reactions.${key}`}
+                  <label key={key}
+                    className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer border-2 transition ${
+                      formData.adverse_reactions[key as keyof typeof formData.adverse_reactions]
+                        ? 'border-red-400 bg-red-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}>
+                    <input type="checkbox" name={`adverse_reactions.${key}`}
                       checked={formData.adverse_reactions[key as keyof typeof formData.adverse_reactions]}
-                      onChange={handleChange}
-                      disabled={loading}
-                      className="w-4 h-4 rounded text-mavic-pink focus:ring-mavic-pink"
-                    />
-                    <span className="text-gray-700">{label}</span>
+                      onChange={handleChange} disabled={loading}
+                      className="w-4 h-4 rounded text-mavic-pink focus:ring-mavic-pink" />
+                    <span className="text-gray-700 text-sm">{label}</span>
                   </label>
                 ))}
               </div>
@@ -176,29 +159,20 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
 
             <div>
               <h2 className="text-xl font-bold text-mavic-black mb-4">Observaciones</h2>
-              <textarea
-                name="observations"
-                value={formData.observations}
-                onChange={handleChange}
+              <textarea name="observations" value={formData.observations} onChange={handleChange}
                 placeholder="Notas adicionales sobre la sesión..."
                 rows={4}
-                className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                disabled={loading}
-              />
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                disabled={loading} />
             </div>
 
             <div className="flex gap-4 pt-6">
-              <button
-                type="submit"
-                disabled={loading}
-                className="flex-1 bg-gradient-to-r from-mavic-pink to-mavic-gold text-white font-bold py-3 px-4 rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {loading ? 'Guardando...' : 'Guardar Sesión'}
+              <button type="submit" disabled={loading}
+                className="flex-1 bg-gradient-to-r from-mavic-pink to-mavic-gold text-white font-bold py-3 px-4 rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
+                {loading ? 'Guardando y generando PDF...' : 'Guardar Sesión'}
               </button>
-              <Link
-                href={`/admin/clientes/${params.id}`}
-                className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-lg transition text-center"
-              >
+              <Link href={`/admin/clientes/${params.id}`}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition text-center">
                 Cancelar
               </Link>
             </div>

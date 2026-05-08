@@ -4,10 +4,28 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
+import { createClient } from '@/lib/supabase/client';
+
+interface Service {
+  id: string;
+  category: string;
+  name_es: string;
+  price: number;
+  price_note_es: string;
+  is_active: boolean;
+  sort_order: number;
+}
 
 export default function Home() {
   const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [services, setServices] = useState<Service[]>([]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from('services').select('*').eq('is_active', true).order('sort_order')
+      .then(({ data }: { data: Service[] | null }) => { if (data?.length) setServices(data); });
+  }, []);
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -148,7 +166,8 @@ export default function Home() {
             Nuestros Servicios
           </h2>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {/* Static category icons */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
             {[
               { icon: '/icons/manicura.png', name: 'Manicura', desc: 'Semipermanente desde 14€' },
               { icon: '/icons/pedicura.png', name: 'Pedicura', desc: 'Cuidado completo del pie' },
@@ -168,7 +187,6 @@ export default function Home() {
               </div>
             ))}
 
-            {/* Creaciones teaser card */}
             <Link href={`/${locale}/nuestras-creaciones`}
               className="bg-mavic-black rounded-2xl p-6 flex flex-col items-center text-center shadow-sm hover:shadow-md transition hover:-translate-y-1 transform group">
               <div className="w-14 h-14 mb-4 flex items-center justify-center">
@@ -178,6 +196,36 @@ export default function Home() {
               <p className="text-sm text-mavic-gold font-medium">Ver galería →</p>
             </Link>
           </div>
+
+          {/* Dynamic pricing from DB */}
+          {services.length > 0 && (() => {
+            const byCategory = services.reduce<Record<string, Service[]>>((acc, s) => {
+              if (!acc[s.category]) acc[s.category] = [];
+              acc[s.category].push(s);
+              return acc;
+            }, {});
+            return (
+              <div className="space-y-8">
+                {Object.entries(byCategory).map(([cat, items]) => (
+                  <div key={cat} className="bg-white rounded-2xl shadow-sm p-6">
+                    <h3 className="text-lg font-bold text-mavic-black mb-4 uppercase tracking-wide border-b border-gray-100 pb-3">
+                      {cat}
+                    </h3>
+                    <div className="space-y-2">
+                      {items.map((item) => (
+                        <div key={item.id} className="flex justify-between items-center py-1.5">
+                          <span className="text-gray-700 text-sm">{item.name_es}</span>
+                          <span className="text-mavic-pink font-semibold text-sm whitespace-nowrap ml-4">
+                            {item.price_note_es ? `${item.price_note_es} ` : ''}{item.price}€
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       </section>
 

@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 interface Session {
   id: string;
   session_date: string;
+  doc_storage_path?: string;
   form_data: {
     zonas?: string;
     power?: string;
@@ -83,7 +84,7 @@ function UploadConsentButton({ clientId, onDone }: { clientId: string; onDone: (
   );
 }
 
-function DownloadConsentButton({ path }: { path: string }) {
+function DownloadDocButton({ path, label = 'Descargar PDF →' }: { path: string; label?: string }) {
   const supabase = createClient();
   const handleDownload = async () => {
     const { data } = await supabase.storage.from('client-documents').createSignedUrl(path, 60);
@@ -92,7 +93,7 @@ function DownloadConsentButton({ path }: { path: string }) {
   return (
     <button onClick={handleDownload}
       className="text-mavic-pink hover:text-mavic-pink/70 font-semibold text-sm transition">
-      Descargar PDF →
+      {label}
     </button>
   );
 }
@@ -238,7 +239,7 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
                 </p>
               </div>
               {consent.doc_storage_path && (
-                <DownloadConsentButton path={consent.doc_storage_path} />
+                <DownloadDocButton path={consent.doc_storage_path} />
               )}
             </div>
           ) : (
@@ -297,11 +298,16 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
                         })}
                       </p>
                     </div>
-                    {session.form_data?.power && (
-                      <span className="text-sm text-mavic-pink font-semibold">
-                        {session.form_data.power} J
-                      </span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {session.form_data?.power && (
+                        <span className="text-sm text-mavic-pink font-semibold">
+                          {session.form_data.power} J
+                        </span>
+                      )}
+                      {session.doc_storage_path && (
+                        <DownloadDocButton path={session.doc_storage_path} label="PDF →" />
+                      )}
+                    </div>
                   </div>
                   {session.form_data?.observations && (
                     <p className="text-gray-700 text-sm mt-2">{session.form_data.observations}</p>

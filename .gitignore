@@ -41,3 +41,9 @@ Thumbs.db
 
 # Large media (stored in Supabase Storage)
 /public/unas/
+
+# Source assets (raw files, not served directly)
+/assets/
+
+# Build artifacts
+tsconfig.tsbuildinfo
