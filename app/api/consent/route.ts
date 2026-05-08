@@ -91,11 +91,15 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert consent form record
-    await supabase.from('consent_forms').insert([{
+    const { error: consentError } = await supabase.from('consent_forms').insert([{
       client_id: clientData.id,
       form_data: { nombre, dni, telefono, fecha_nacimiento, direccion, poblacion, cp },
       doc_storage_path: docPath,
     }]);
+
+    if (consentError) {
+      return NextResponse.json({ error: 'consent_forms: ' + consentError.message }, { status: 500 });
+    }
 
     return NextResponse.json({ success: true, clientId: clientData.id });
   } catch (err: unknown) {
