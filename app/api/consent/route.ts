@@ -1,38 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import {
-  Document, Packer, Paragraph, TextRun, ImageRun,
-  Table, TableRow, TableCell, WidthType, BorderStyle,
-  AlignmentType, HeadingLevel, ShadingType,
-} from 'docx';
+import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { createClient } from '@supabase/supabase-js';
-
-function fieldRow(label: string, value: string) {
-  return new TableRow({
-    children: [
-      new TableCell({
-        width: { size: 35, type: WidthType.PERCENTAGE },
-        shading: { type: ShadingType.SOLID, color: 'F5EDD6' },
-        borders: {
-          top: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          left: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          right: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-        },
-        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 20 })] })],
-      }),
-      new TableCell({
-        width: { size: 65, type: WidthType.PERCENTAGE },
-        borders: {
-          top: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          left: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-          right: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
-        },
-        children: [new Paragraph({ children: [new TextRun({ text: value || '—', size: 20 })] })],
-      }),
-    ],
-  });
-}
+import fs from 'fs';
+import path from 'path';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,82 +13,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
-    const fechaDoc = new Date().toLocaleDateString('es-ES', {
-      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-    });
+    // Load the original PDF template
+    const pdfPath = path.join(process.cwd(), 'public', 'forms', 'CONSENTIMLASER_form.pdf');
+    const pdfBytes = fs.readFileSync(pdfPath);
+    const pdfDoc = await PDFDocument.load(pdfBytes, { throwOnInvalidObject: false });
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const page = pdfDoc.getPages()[0];
 
+    const fontSize = 11;
+    const textColor = rgb(0, 0, 0);
+
+    // Stamp text directly at the exact field coordinates (bypasses AcroForm entirely)
+    // Field rects from PDF inspection: [x1, y1, x2, y2] — y is from bottom
+    page.drawText(nombre, { x: 132, y: 758, size: fontSize, font, color: textColor });
+    page.drawText(dni,    { x: 132, y: 738, size: fontSize, font, color: textColor });
+    page.drawText('Mavic Beauty & Nails', { x: 282, y: 713, size: fontSize, font, color: textColor });
+
+    // Embed signature image at the FirmaPaciente field position [440, 90, 560, 115]
     const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
-    const sigBuffer = Buffer.from(sigBase64, 'base64');
+    const sigBytes = Buffer.from(sigBase64, 'base64');
+    const sigImage = await pdfDoc.embedPng(sigBytes);
+    page.drawImage(sigImage, { x: 440, y: 90, width: 120, height: 25 });
 
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: [
-          // Header
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 100 },
-            children: [new TextRun({ text: 'MAVIC BEAUTY & NAILS', bold: true, size: 32, color: 'C9A84C' })],
-          }),
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { after: 60 },
-            children: [new TextRun({ text: 'Plaça de l\'Església, 11 · 08110 Montcada i Reixac, Barcelona', size: 18, color: '666666' })],
-          }),
-          new Paragraph({
-            heading: HeadingLevel.HEADING_1,
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 200, after: 300 },
-            children: [new TextRun({ text: 'CONSENTIMIENTO INFORMADO — DEPILACIÓN LÁSER', bold: true, size: 26, color: 'F8B4C8' })],
-          }),
-
-          // Client data table
-          new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'DATOS DEL PACIENTE', bold: true, size: 22, color: '1A1A1A' })] }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            rows: [
-              fieldRow('Nombre completo', nombre),
-              fieldRow('DNI / NIE', dni),
-              fieldRow('Teléfono', telefono),
-              fieldRow('Fecha de nacimiento', fecha_nacimiento ? new Date(fecha_nacimiento).toLocaleDateString('es-ES') : ''),
-              fieldRow('Dirección', [direccion, poblacion, cp].filter(Boolean).join(', ')),
-              fieldRow('Centro', 'Mavic Beauty & Nails'),
-            ],
-          }),
-
-          // Consent text
-          new Paragraph({ spacing: { before: 400, after: 100 }, children: [new TextRun({ text: 'DECLARACIÓN DE CONSENTIMIENTO', bold: true, size: 22 })] }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({
-              text: 'Yo, el/la abajo firmante, declaro haber sido informado/a sobre el tratamiento de depilación láser, sus posibles efectos secundarios y contraindicaciones. Confirmo que no padezco ninguna de las contraindicaciones indicadas y doy mi consentimiento para recibir el tratamiento en Mavic Beauty & Nails.',
-              size: 20,
-            })],
-          }),
-          new Paragraph({
-            spacing: { after: 160 },
-            children: [new TextRun({
-              text: 'Mis datos personales serán tratados de conformidad con la LOPD y el RGPD únicamente para la gestión de mi historial de tratamientos.',
-              size: 20,
-            })],
-          }),
-
-          // Signature
-          new Paragraph({ spacing: { before: 400, after: 100 }, children: [new TextRun({ text: 'FIRMA DEL PACIENTE', bold: true, size: 22 })] }),
-          new Paragraph({
-            children: [
-              new ImageRun({
-                data: sigBuffer,
-                transformation: { width: 220, height: 70 },
-              }),
-            ],
-          }),
-          new Paragraph({ spacing: { before: 100 }, children: [new TextRun({ text: `Firmado digitalmente el ${fechaDoc}`, size: 18, color: '666666', italics: true })] }),
-        ],
-      }],
-    });
-
-    const docBuffer = await Packer.toBuffer(doc);
+    const docBuffer = await pdfDoc.save();
 
     // Save to Supabase
     const supabase = createClient(
@@ -148,11 +65,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Upload DOCX to Supabase Storage
-    const fileName = `consentimiento_${clientData.id}_${Date.now()}.docx`;
+    const fileName = `consentimiento_${clientData.id}_${Date.now()}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from('client-documents')
       .upload(fileName, docBuffer, {
-        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        contentType: 'application/pdf',
         upsert: false,
       });
 
