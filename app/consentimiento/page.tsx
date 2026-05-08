@@ -1,9 +1,12 @@
 'use client';
 
 import Image from 'next/image';
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 
-export default function ConsentimientoPage() {
+function ConsentimientoForm() {
+  const searchParams = useSearchParams();
+  const existingClientId = searchParams.get('clientId');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [hasSig, setHasSig] = useState(false);
@@ -99,7 +102,7 @@ export default function ConsentimientoPage() {
       const res = await fetch('/api/consent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, signatureDataUrl }),
+        body: JSON.stringify({ ...form, signatureDataUrl, existingClientId }),
       });
       if (!res.ok) {
         const d = await res.json();
@@ -260,5 +263,13 @@ export default function ConsentimientoPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ConsentimientoPage() {
+  return (
+    <Suspense>
+      <ConsentimientoForm />
+    </Suspense>
   );
 }

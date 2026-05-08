@@ -7,9 +7,12 @@ import path from 'path';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { nombre, dni, telefono, fecha_nacimiento, direccion, poblacion, cp, signatureDataUrl } = body;
+    const { nombre, dni, telefono, fecha_nacimiento, direccion, poblacion, cp, signatureDataUrl, existingClientId } = body;
 
-    if (!nombre || !dni || !telefono || !fecha_nacimiento || !signatureDataUrl) {
+    if (!signatureDataUrl) {
+      return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
+    }
+    if (!existingClientId && (!nombre || !dni || !telefono || !fecha_nacimiento)) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
@@ -53,29 +56,34 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
 
-    // Insert client
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .insert([{
-        name: nombre.split(' ')[0],
-        apellidos: nombre.split(' ').slice(1).join(' '),
-        phone: telefono,
-        dni,
-        fecha_nacimiento,
-        direccion: direccion || '',
-        poblacion: poblacion || '',
-        cp: cp || '',
-        provincia: 'Barcelona',
-      }])
-      .select()
-      .single();
-
-    if (clientError) {
-      return NextResponse.json({ error: clientError.message }, { status: 500 });
+    // Use existing client or insert new one
+    let clientId: string;
+    if (existingClientId) {
+      clientId = existingClientId;
+    } else {
+      const { data: clientData, error: clientError } = await supabase
+        .from('clients')
+        .insert([{
+          name: nombre.split(' ')[0],
+          apellidos: nombre.split(' ').slice(1).join(' '),
+          phone: telefono,
+          dni,
+          fecha_nacimiento,
+          direccion: direccion || '',
+          poblacion: poblacion || '',
+          cp: cp || '',
+          provincia: 'Barcelona',
+        }])
+        .select()
+        .single();
+      if (clientError) {
+        return NextResponse.json({ error: clientError.message }, { status: 500 });
+      }
+      clientId = clientData.id;
     }
 
     // Upload DOCX to Supabase Storage
-    const fileName = `consentimiento_${clientData.id}_${Date.now()}.pdf`;
+    const fileName = `consentimiento_${clientId}_${Date.now()}.pdf`;
     const { error: uploadError } = await supabase.storage
       .from('client-documents')
       .upload(fileName, docBuffer, {
@@ -87,7 +95,7 @@ export async function POST(req: NextRequest) {
 
     // Insert consent form record
     const { error: consentError } = await supabase.from('consent_forms').insert([{
-      client_id: clientData.id,
+      client_id: clientId,
       form_data: { nombre, dni, telefono, fecha_nacimiento, direccion, poblacion, cp },
       doc_storage_path: docPath,
     }]);
@@ -96,7 +104,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'consent_forms: ' + consentError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, clientId: clientData.id });
+    return NextResponse.json({ success: true, clientId });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Error interno';
     return NextResponse.json({ error: message }, { status: 500 });

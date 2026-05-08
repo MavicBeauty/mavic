@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 interface Session {
@@ -37,6 +37,50 @@ interface ClientProfile {
   cp?: string;
   provincia?: string;
   created_at: string;
+}
+
+function UploadConsentButton({ clientId, onDone }: { clientId: string; onDone: () => void }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const supabase = createClient();
+    const fileName = `consentimiento_${clientId}_${Date.now()}.${file.name.split('.').pop()}`;
+    const { error: uploadError } = await supabase.storage
+      .from('client-documents')
+      .upload(fileName, file, { upsert: false });
+    if (!uploadError) {
+      await supabase.from('consent_forms').insert([{
+        client_id: clientId,
+        form_data: {},
+        doc_storage_path: fileName,
+      }]);
+      onDone();
+    }
+    setUploading(false);
+  };
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        className="hidden"
+        onChange={handleFile}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="flex-1 bg-white border-2 border-yellow-400 hover:border-mavic-pink text-yellow-800 hover:text-mavic-pink font-semibold px-4 py-2.5 rounded-lg transition text-sm disabled:opacity-50">
+        {uploading ? 'Subiendo...' : '📎 Subir / fotografiar consentimiento físico'}
+      </button>
+    </>
+  );
 }
 
 function DownloadConsentButton({ path }: { path: string }) {
@@ -193,9 +237,19 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
               )}
             </div>
           ) : (
-            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
-              <p className="text-yellow-800 font-semibold">⚠ Sin consentimiento registrado</p>
-              <p className="text-yellow-700 text-sm mt-1">El cliente no tiene consentimiento informado. Es obligatorio antes del primer tratamiento.</p>
+            <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg space-y-3">
+              <div>
+                <p className="text-yellow-800 font-semibold">⚠ Sin consentimiento registrado</p>
+                <p className="text-yellow-700 text-sm mt-1">Es obligatorio antes del primer tratamiento.</p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href={`/consentimiento?clientId=${client.id}`}
+                  className="flex-1 text-center bg-mavic-pink hover:bg-mavic-pink/90 text-white font-semibold px-4 py-2.5 rounded-lg transition text-sm">
+                  📋 Rellenar consentimiento digital
+                </Link>
+                <UploadConsentButton clientId={client.id} onDone={() => window.location.reload()} />
+              </div>
             </div>
           )}
         </div>
