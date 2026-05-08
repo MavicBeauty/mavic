@@ -3,8 +3,8 @@ import { NextRequest, NextResponse } from 'next/server';
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
-  // Skip middleware for admin routes and API routes
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api')) {
+  // Skip middleware for admin routes, API routes, and standalone pages
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname.startsWith('/consentimiento')) {
     return NextResponse.next();
   }
 
