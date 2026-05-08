@@ -30,10 +30,18 @@ export default function Home() {
 
   useEffect(() => {
     if (!booksyRef.current) return;
+    const container = booksyRef.current;
+
     const script = document.createElement('script');
-    script.src = 'https://booksy.com/widget/code.js?id=97502&country=es&lang=es';
+    script.src = 'https://booksy.com/widget-2021/code.js?id=97502&country=es&lang=es&mode=inline';
     script.async = true;
-    document.body.appendChild(script);
+    script.onload = () => console.log('[Booksy] script loaded OK');
+    script.onerror = (e) => console.error('[Booksy] script load error', e);
+
+    // Insert inside container so the widget renders here (it inserts after its own <script> tag)
+    container.appendChild(script);
+    console.log('[Booksy] script injected into container');
+
     return () => { script.remove(); };
   }, []);
 
@@ -154,7 +162,7 @@ export default function Home() {
           </h2>
           <p className="text-gray-500 mb-8">Elige tu servicio, día y hora en segundos — sin esperas, sin llamadas.</p>
           <div className="bg-white rounded-2xl shadow-xl p-2 min-h-[500px]">
-            <div ref={booksyRef} className="booksy-widget-embed w-full" data-id="97502" data-country="es" data-lang="es" />
+            <div ref={booksyRef} className="w-full" />
           </div>
           <p className="text-gray-400 text-xs mt-4">Powered by Booksy</p>
         </div>
