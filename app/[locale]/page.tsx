@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import Script from 'next/script';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 
@@ -21,11 +20,21 @@ export default function Home() {
   const locale = useLocale();
   const [menuOpen, setMenuOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
+  const booksyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const supabase = createClient();
     supabase.from('services').select('*').eq('is_active', true).order('sort_order')
       .then(({ data }: { data: Service[] | null }) => { if (data?.length) setServices(data); });
+  }, []);
+
+  useEffect(() => {
+    if (!booksyRef.current) return;
+    const script = document.createElement('script');
+    script.src = 'https://booksy.com/widget/code.js?id=97502&country=es&lang=es';
+    script.async = true;
+    document.body.appendChild(script);
+    return () => { script.remove(); };
   }, []);
 
 
@@ -144,8 +153,8 @@ export default function Home() {
             ¿Lista para tu próxima cita?
           </h2>
           <p className="text-gray-500 mb-8">Elige tu servicio, día y hora en segundos — sin esperas, sin llamadas.</p>
-          <div className="bg-white rounded-2xl shadow-xl p-6 flex justify-center">
-            <div className="booksy-widget-embed" data-id="97502" data-country="es" data-lang="es" />
+          <div className="bg-white rounded-2xl shadow-xl p-2 min-h-[500px]">
+            <div ref={booksyRef} className="booksy-widget-embed w-full" data-id="97502" data-country="es" data-lang="es" />
           </div>
           <p className="text-gray-400 text-xs mt-4">Powered by Booksy</p>
         </div>
@@ -292,11 +301,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      <Script
-        src="https://booksy.com/widget/code.js?id=97502&country=es&lang=es"
-        strategy="afterInteractive"
-      />
 
       {/* ── FOOTER ── */}
       <footer className="bg-mavic-black text-white py-10 px-4">
