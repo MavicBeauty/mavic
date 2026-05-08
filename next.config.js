@@ -20,7 +20,7 @@ const nextConfig = {
             value: [
               "default-src 'self'",
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://booksy.com https://*.booksy.com",
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://booksy.com https://*.booksy.com",
               "font-src 'self' data: https://fonts.gstatic.com",
               "img-src 'self' data: blob: https://*.supabase.co https://booksy.com https://*.booksy.com",
               "frame-src 'self' https://booksy.com https://*.booksy.com",
