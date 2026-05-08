@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import Script from 'next/script';
 import { useState, useEffect } from 'react';
 import { useLocale } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
@@ -27,14 +28,6 @@ export default function Home() {
       .then(({ data }: { data: Service[] | null }) => { if (data?.length) setServices(data); });
   }, []);
 
-  useEffect(() => {
-    const script = document.createElement('script');
-    script.type = 'text/javascript';
-    script.src = 'https://booksy.com/widget/code.js?id=97502&country=es&lang=es';
-    script.async = true;
-    document.body.appendChild(script);
-    return () => { document.body.removeChild(script); };
-  }, []);
 
   const navLinks = [
     { href: '#servicios', label: 'Servicios' },
@@ -299,6 +292,11 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <Script
+        src="https://booksy.com/widget/code.js?id=97502&country=es&lang=es"
+        strategy="afterInteractive"
+      />
 
       {/* ── FOOTER ── */}
       <footer className="bg-mavic-black text-white py-10 px-4">
