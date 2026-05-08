@@ -195,19 +195,21 @@ export default function ConsentimientoPage() {
             </div>
           </div>
 
-          {/* Consent text */}
+          {/* Consent text — scrollable, must read before signing */}
           <div className="bg-white rounded-2xl shadow-sm p-6">
-            <h2 className="text-base font-bold text-mavic-black uppercase tracking-wide mb-3">Consentimiento</h2>
-            <p className="text-sm text-gray-600 leading-relaxed">
-              Yo, el/la abajo firmante, declaro haber sido informado/a sobre el tratamiento de depilación láser,
-              sus posibles efectos secundarios y contraindicaciones. Confirmo que no padezco ninguna de las
-              contraindicaciones indicadas y doy mi consentimiento para recibir el tratamiento en
-              <strong> Mavic Beauty & Nails</strong>.
-            </p>
-            <p className="text-sm text-gray-600 mt-3 leading-relaxed">
-              Mis datos personales serán tratados de conformidad con la LOPD y el RGPD únicamente para
-              la gestión de mi historial de tratamientos.
-            </p>
+            <h2 className="text-base font-bold text-mavic-black uppercase tracking-wide mb-3">Información y consentimiento</h2>
+            <p className="text-xs text-mavic-pink font-semibold mb-2">Lee el documento completo antes de firmar</p>
+            <div className="h-64 overflow-y-scroll border border-gray-200 rounded-xl p-4 text-sm text-gray-600 leading-relaxed space-y-3 bg-gray-50">
+              <p>Declaro que se me ha informado de la naturaleza del procedimiento de la depilación láser. El sistema de la depilación láser posibilita la destrucción de un número de folículos del pelo, siempre existe otra fracción de ellos que está en reposo (en el momento del procedimiento), y por lo tanto no desaparecen. De este modo nunca se elimina la totalidad del pelo.</p>
+              <p>El número de sesiones recomendado para la eliminación de la mayor parte del pelo, se sitúa entre 8 y 10, pudiendo ser mayor en algunas ocasiones. La depilación facial puede ser especialmente resistente por el hecho que el hirsutismo que afecta a esta región, hace surgir el pelo nuevo a mayor velocidad que el láser es capaz de eliminarlo. Esta patología debe ser comunicada, ya que en estos casos se requieren más sesiones a las requeridas en circunstancias normales.</p>
+              <p className="font-semibold text-mavic-black">EFECTOS SECUNDARIOS</p>
+              <p>Enrojecimiento de la zona después de la sesión, hipopigmentación, hiperpigmentación, o raramente la aparición de pequeñas ampollas o vesículas en la zona tratada.</p>
+              <p>En ciertas ocasiones, especialmente cuando la piel está menos blanca o ligeramente bronceada, pueden surgir costras de color granate en las zonas tratadas. Estas costras se desprenden posteriormente dejando la piel tratada algo menos pigmentada que el resto. Esta región recupera su color normal con la exposición solar, sin dejar secuela alguna.</p>
+              <p>Se me ha explicado los cuidados que debo seguir para evitar estos efectos secundarios, como evitar el uso del maquillaje sobre la cara ó sustancias inflamables que pudieran reaccionar con la luz del láser como ocurre con el alcohol o la acetona.</p>
+              <p className="font-semibold text-mavic-black">CONTRAINDICACIONES</p>
+              <p>Embarazo, padecimiento de trastornos inmunosupresores donde se evidencie una inmunodepresión real, infecciones activas de la piel (Herpes Zoster o simple, varicela, Impétigo contagioso), trastornos que supongan un deterioro importante del estado de salud, personas que en los últimos 6 meses se hayan sometido a un tratamiento oral de ROACUTÁN®, TIGASÓN®, NEOTIGASÓN® (isotrerinoina oral) y en personas que en los últimos 6 meses se hayan sometido la zona a depilar a tratamiento con láser CO2, Erbio Yag o dermoabrasión, depilación cercana al ojo que pueda permitir la entrada de láser en el globo ocular y su impacto en estructuras pigmentadas como el iris y la retina, estar tomando ANTIBIÓTICOS.</p>
+              <p className="font-semibold text-mavic-black">DECLARO NO PRESENTAR NI PADECER NINGUNA DE LAS CONTRAINDICACIONES ARRIBA MENCIONADAS.</p>
+            </div>
           </div>
 
           {/* Signature */}

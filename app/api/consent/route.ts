@@ -20,20 +20,30 @@ export async function POST(req: NextRequest) {
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const page = pdfDoc.getPages()[0];
 
-    const fontSize = 11;
+    const fontSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    // Stamp text directly at the exact field coordinates (bypasses AcroForm entirely)
-    // Field rects from PDF inspection: [x1, y1, x2, y2] — y is from bottom
-    page.drawText(nombre, { x: 132, y: 758, size: fontSize, font, color: textColor });
-    page.drawText(dni,    { x: 132, y: 738, size: fontSize, font, color: textColor });
-    page.drawText('Mavic Beauty & Nails', { x: 282, y: 713, size: fontSize, font, color: textColor });
+    // Stamp text directly at text-line positions extracted from PDF stream analysis
+    // Line y=749: "En [city], a [date]"
+    page.drawText('Montcada i Reixac', { x: 68, y: 749, size: fontSize, font, color: textColor });
+    const now = new Date();
+    const dateStr = `${now.getDate()} de ${now.toLocaleString('es-ES', { month: 'long' })} de ${now.getFullYear()}`;
+    page.drawText(dateStr, { x: 355, y: 749, size: fontSize, font, color: textColor });
 
-    // Embed signature image at the FirmaPaciente field position [440, 90, 560, 115]
+    // Line y=727: "D/Dña: [name]"
+    page.drawText(nombre, { x: 98, y: 727, size: fontSize, font, color: textColor });
+
+    // Line y=705: "DNI: [dni]"
+    page.drawText(dni, { x: 85, y: 705, size: fontSize, font, color: textColor });
+
+    // Line y=683: "...en el centro [clinic]"
+    page.drawText('Mavic Beauty & Nails', { x: 320, y: 683, size: fontSize, font, color: textColor });
+
+    // Signature — doubled size, at FIRMA DEL PACIENTE box (right column, above y=63 label)
     const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
     const sigBytes = Buffer.from(sigBase64, 'base64');
     const sigImage = await pdfDoc.embedPng(sigBytes);
-    page.drawImage(sigImage, { x: 440, y: 90, width: 120, height: 25 });
+    page.drawImage(sigImage, { x: 390, y: 68, width: 200, height: 50 });
 
     const docBuffer = await pdfDoc.save();
 
