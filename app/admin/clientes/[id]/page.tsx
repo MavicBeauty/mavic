@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -53,10 +54,22 @@ function DownloadConsentButton({ path }: { path: string }) {
 }
 
 export default function ClientProfilePage({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const [client, setClient] = useState<ClientProfile | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [consent, setConsent] = useState<ConsentForm | null>(null);
   const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    if (!confirm(`¿Eliminar a ${client?.name} ${client?.apellidos}? Se borrarán también sus sesiones y consentimiento. Esta acción no se puede deshacer.`)) return;
+    setDeleting(true);
+    const supabase = createClient();
+    await supabase.from('consent_forms').delete().eq('client_id', params.id);
+    await supabase.from('clinical_sessions').delete().eq('client_id', params.id);
+    await supabase.from('clients').delete().eq('id', params.id);
+    router.push('/admin/clientes');
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -110,9 +123,17 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
             <h1 className="text-3xl font-bold">{client.name} {client.apellidos}</h1>
             <p className="text-white/80 mt-1">{client.phone}</p>
           </div>
-          <Link href="/admin/clientes" className="text-white hover:text-gray-100 font-semibold transition">
-            ← Volver a Clientes
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/clientes" className="text-white hover:text-gray-100 font-semibold transition">
+              ← Volver a Clientes
+            </Link>
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-white/20 hover:bg-red-500 text-white font-semibold px-4 py-2 rounded-lg transition disabled:opacity-50">
+              {deleting ? 'Eliminando...' : 'Eliminar cliente'}
+            </button>
+          </div>
         </div>
       </header>
 
