@@ -1,5 +1,6 @@
 'use client';
 
+// Services management page - admin only
 import Link from 'next/link';
 import { useState } from 'react';
 
