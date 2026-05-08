@@ -110,7 +110,6 @@ export async function POST(req: NextRequest) {
               new ImageRun({
                 data: sigBuffer,
                 transformation: { width: 220, height: 70 },
-                type: 'png',
               }),
             ],
           }),
