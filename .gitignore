@@ -45,5 +45,8 @@ Thumbs.db
 # Source assets (raw files, not served directly)
 /assets/
 
+# Loose PDF originals in project root (served copy is in public/forms/)
+/*.pdf
+
 # Build artifacts
 tsconfig.tsbuildinfo
