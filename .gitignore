@@ -38,3 +38,6 @@ yarn-error.log*
 # OS
 Thumbs.db
 .DS_Store
+
+# Large media (stored in Supabase Storage)
+/public/unas/

@@ -5,44 +5,46 @@ import Image from 'next/image';
 import { useState, useCallback } from 'react';
 import { useLocale } from 'next-intl';
 
+const BASE = 'https://cjqmterrgrthhpxmaoxc.supabase.co/storage/v1/object/public/nail-gallery';
+
 const ALL_IMAGES = [
-  '/unas/u1.jpg','/unas/u2.jpg','/unas/u3.jpg','/unas/u4.jpeg','/unas/u5.jpeg',
-  '/unas/u6.jpeg','/unas/u7.jpeg','/unas/u8.jpeg','/unas/u9.jpg','/unas/u10.jpeg',
-  '/unas/u11.jpeg','/unas/u12.jpeg','/unas/u13.jpeg','/unas/u14.jpg','/unas/u15.jpeg',
-  '/unas/u16.jpg','/unas/u17.jpg','/unas/u18.jpeg','/unas/u19.jpg','/unas/u20.jpeg',
-  '/unas/u21.jpg','/unas/u22.jpeg','/unas/u23.jpeg','/unas/u24.jpg','/unas/u25.jpeg',
-  '/unas/u26.jpeg','/unas/u27.jpg','/unas/u28.jpg','/unas/u29.jpeg','/unas/u30.jpg',
-  '/unas/u31.jpeg','/unas/u32.jpg','/unas/u33.jpg','/unas/u34.jpg','/unas/u35.jpeg',
-  '/unas/u36.jpeg','/unas/u37.jpeg','/unas/u38.jpeg','/unas/u39.jpeg','/unas/u40.jpg',
-  '/unas/u41.jpg','/unas/u42.jpg','/unas/u43.jpg','/unas/u44.jpg','/unas/u45.jpeg',
-  '/unas/u46.jpg','/unas/u47.jpeg','/unas/u48.jpg','/unas/u49.jpeg','/unas/u50.jpeg',
-  '/unas/u51.jpg','/unas/u52.jpg','/unas/u53.jpeg','/unas/u54.jpeg','/unas/u55.jpeg',
-  '/unas/u56.jpg','/unas/u57.jpeg','/unas/u58.jpeg','/unas/u59.jpg','/unas/u60.jpeg',
-  '/unas/u61.jpg','/unas/u62.jpg','/unas/u63.jpg','/unas/u64.jpeg','/unas/u65.jpg',
-  '/unas/u66.jpeg','/unas/u67.jpg','/unas/u68.jpeg','/unas/u69.jpg','/unas/u70.jpg',
-  '/unas/u71.jpeg','/unas/u72.jpg','/unas/u73.jpg','/unas/u74.jpeg','/unas/u75.jpeg',
-  '/unas/u76.jpeg','/unas/u77.jpg','/unas/u78.jpeg','/unas/u79.jpeg','/unas/u80.jpeg',
-  '/unas/u81.jpg','/unas/u82.jpeg','/unas/u83.jpeg','/unas/u84.jpg','/unas/u85.jpg',
-  '/unas/u86.jpeg','/unas/u87.jpeg','/unas/u88.jpg','/unas/u89.jpg','/unas/u90.jpeg',
-  '/unas/u91.jpeg','/unas/u92.jpeg','/unas/u93.jpeg','/unas/u94.jpg','/unas/u95.jpeg',
-  '/unas/u97.jpeg','/unas/u98.jpeg','/unas/u99.jpg','/unas/u100.jpeg','/unas/u101.jpeg',
-  '/unas/u102.jpg','/unas/u103.jpg','/unas/u104.jpg','/unas/u105.jpg','/unas/u106.jpeg',
-  '/unas/u107.jpg','/unas/u108.jpg','/unas/u109.jpeg','/unas/u110.jpeg','/unas/u111.jpeg',
-  '/unas/u112.jpeg','/unas/u113.jpeg','/unas/u114.jpg','/unas/u115.jpeg','/unas/u116.jpeg',
-  '/unas/u117.jpeg','/unas/u118.jpg','/unas/u119.jpeg','/unas/u120.jpg','/unas/u121.jpg',
-  '/unas/u122.jpg','/unas/u123.jpg','/unas/u124.jpeg','/unas/u125.jpeg','/unas/u126.jpg',
-  '/unas/u127.jpg','/unas/u128.jpg','/unas/u129.jpeg','/unas/u130.jpeg','/unas/u131.jpeg',
-  '/unas/u132.jpg','/unas/u133.jpeg','/unas/u134.jpeg','/unas/u135.jpg','/unas/u136.jpg',
-  '/unas/u137.jpeg','/unas/u138.jpeg','/unas/u139.jpg','/unas/u140.jpg','/unas/u141.jpg',
-  '/unas/u142.jpeg','/unas/u143.jpeg','/unas/u144.jpeg','/unas/u145.jpg','/unas/u146.jpg',
-  '/unas/u147.jpeg','/unas/u148.jpeg','/unas/u149.jpg','/unas/u150.jpg','/unas/u151.jpeg',
-  '/unas/u152.jpeg','/unas/u153.jpeg','/unas/u154.jpeg','/unas/u155.jpg','/unas/u156.jpeg',
-  '/unas/u157.jpeg','/unas/u158.jpg','/unas/u159.jpg','/unas/u160.jpg','/unas/u161.jpeg',
-  '/unas/u162.jpg','/unas/u163.jpeg','/unas/u164.jpeg','/unas/u165.jpeg','/unas/u166.jpeg',
-  '/unas/u167.jpeg','/unas/u168.jpeg','/unas/u169.jpg','/unas/u170.jpg','/unas/u171.jpg',
-  '/unas/u172.jpg','/unas/u173.jpeg','/unas/u174.jpeg','/unas/u175.jpeg','/unas/u176.jpg',
-  '/unas/u177.jpeg','/unas/u178.jpg','/unas/u179.jpg','/unas/u180.jpg','/unas/u181.jpg',
-  '/unas/u182.jpeg','/unas/u183.jpg',
+  `${BASE}/u1.jpg`,`${BASE}/u2.jpg`,`${BASE}/u3.jpg`,`${BASE}/u4.jpeg`,`${BASE}/u5.jpeg`,
+  `${BASE}/u6.jpeg`,`${BASE}/u7.jpeg`,`${BASE}/u8.jpeg`,`${BASE}/u9.jpg`,`${BASE}/u10.jpeg`,
+  `${BASE}/u11.jpeg`,`${BASE}/u12.jpeg`,`${BASE}/u13.jpeg`,`${BASE}/u14.jpg`,`${BASE}/u15.jpeg`,
+  `${BASE}/u16.jpg`,`${BASE}/u17.jpg`,`${BASE}/u18.jpeg`,`${BASE}/u19.jpg`,`${BASE}/u20.jpeg`,
+  `${BASE}/u21.jpg`,`${BASE}/u22.jpeg`,`${BASE}/u23.jpeg`,`${BASE}/u24.jpg`,`${BASE}/u25.jpeg`,
+  `${BASE}/u26.jpeg`,`${BASE}/u27.jpg`,`${BASE}/u28.jpg`,`${BASE}/u29.jpeg`,`${BASE}/u30.jpg`,
+  `${BASE}/u31.jpeg`,`${BASE}/u32.jpg`,`${BASE}/u33.jpg`,`${BASE}/u34.jpg`,`${BASE}/u35.jpeg`,
+  `${BASE}/u36.jpeg`,`${BASE}/u37.jpeg`,`${BASE}/u38.jpeg`,`${BASE}/u39.jpeg`,`${BASE}/u40.jpg`,
+  `${BASE}/u41.jpg`,`${BASE}/u42.jpg`,`${BASE}/u43.jpg`,`${BASE}/u44.jpg`,`${BASE}/u45.jpeg`,
+  `${BASE}/u46.jpg`,`${BASE}/u47.jpeg`,`${BASE}/u48.jpg`,`${BASE}/u49.jpeg`,`${BASE}/u50.jpeg`,
+  `${BASE}/u51.jpg`,`${BASE}/u52.jpg`,`${BASE}/u53.jpeg`,`${BASE}/u54.jpeg`,`${BASE}/u55.jpeg`,
+  `${BASE}/u56.jpg`,`${BASE}/u57.jpeg`,`${BASE}/u58.jpeg`,`${BASE}/u59.jpg`,`${BASE}/u60.jpeg`,
+  `${BASE}/u61.jpg`,`${BASE}/u62.jpg`,`${BASE}/u63.jpg`,`${BASE}/u64.jpeg`,`${BASE}/u65.jpg`,
+  `${BASE}/u66.jpeg`,`${BASE}/u67.jpg`,`${BASE}/u68.jpeg`,`${BASE}/u69.jpg`,`${BASE}/u70.jpg`,
+  `${BASE}/u71.jpeg`,`${BASE}/u72.jpg`,`${BASE}/u73.jpg`,`${BASE}/u74.jpeg`,`${BASE}/u75.jpeg`,
+  `${BASE}/u76.jpeg`,`${BASE}/u77.jpg`,`${BASE}/u78.jpeg`,`${BASE}/u79.jpeg`,`${BASE}/u80.jpeg`,
+  `${BASE}/u81.jpg`,`${BASE}/u82.jpeg`,`${BASE}/u83.jpeg`,`${BASE}/u84.jpg`,`${BASE}/u85.jpg`,
+  `${BASE}/u86.jpeg`,`${BASE}/u87.jpeg`,`${BASE}/u88.jpg`,`${BASE}/u89.jpg`,`${BASE}/u90.jpeg`,
+  `${BASE}/u91.jpeg`,`${BASE}/u92.jpeg`,`${BASE}/u93.jpeg`,`${BASE}/u94.jpg`,`${BASE}/u95.jpeg`,
+  `${BASE}/u97.jpeg`,`${BASE}/u98.jpeg`,`${BASE}/u99.jpg`,`${BASE}/u100.jpeg`,`${BASE}/u101.jpeg`,
+  `${BASE}/u102.jpg`,`${BASE}/u103.jpg`,`${BASE}/u104.jpg`,`${BASE}/u105.jpg`,`${BASE}/u106.jpeg`,
+  `${BASE}/u107.jpg`,`${BASE}/u108.jpg`,`${BASE}/u109.jpeg`,`${BASE}/u110.jpeg`,`${BASE}/u111.jpeg`,
+  `${BASE}/u112.jpeg`,`${BASE}/u113.jpeg`,`${BASE}/u114.jpg`,`${BASE}/u115.jpeg`,`${BASE}/u116.jpeg`,
+  `${BASE}/u117.jpeg`,`${BASE}/u118.jpg`,`${BASE}/u119.jpeg`,`${BASE}/u120.jpg`,`${BASE}/u121.jpg`,
+  `${BASE}/u122.jpg`,`${BASE}/u123.jpg`,`${BASE}/u124.jpeg`,`${BASE}/u125.jpeg`,`${BASE}/u126.jpg`,
+  `${BASE}/u127.jpg`,`${BASE}/u128.jpg`,`${BASE}/u129.jpeg`,`${BASE}/u130.jpeg`,`${BASE}/u131.jpeg`,
+  `${BASE}/u132.jpg`,`${BASE}/u133.jpeg`,`${BASE}/u134.jpeg`,`${BASE}/u135.jpg`,`${BASE}/u136.jpg`,
+  `${BASE}/u137.jpeg`,`${BASE}/u138.jpeg`,`${BASE}/u139.jpg`,`${BASE}/u140.jpg`,`${BASE}/u141.jpg`,
+  `${BASE}/u142.jpeg`,`${BASE}/u143.jpeg`,`${BASE}/u144.jpeg`,`${BASE}/u145.jpg`,`${BASE}/u146.jpg`,
+  `${BASE}/u147.jpeg`,`${BASE}/u148.jpeg`,`${BASE}/u149.jpg`,`${BASE}/u150.jpg`,`${BASE}/u151.jpeg`,
+  `${BASE}/u152.jpeg`,`${BASE}/u153.jpeg`,`${BASE}/u154.jpeg`,`${BASE}/u155.jpg`,`${BASE}/u156.jpeg`,
+  `${BASE}/u157.jpeg`,`${BASE}/u158.jpg`,`${BASE}/u159.jpg`,`${BASE}/u160.jpg`,`${BASE}/u161.jpeg`,
+  `${BASE}/u162.jpg`,`${BASE}/u163.jpeg`,`${BASE}/u164.jpeg`,`${BASE}/u165.jpeg`,`${BASE}/u166.jpeg`,
+  `${BASE}/u167.jpeg`,`${BASE}/u168.jpeg`,`${BASE}/u169.jpg`,`${BASE}/u170.jpg`,`${BASE}/u171.jpg`,
+  `${BASE}/u172.jpg`,`${BASE}/u173.jpeg`,`${BASE}/u174.jpeg`,`${BASE}/u175.jpeg`,`${BASE}/u176.jpg`,
+  `${BASE}/u177.jpeg`,`${BASE}/u178.jpg`,`${BASE}/u179.jpg`,`${BASE}/u180.jpg`,`${BASE}/u181.jpg`,
+  `${BASE}/u182.jpeg`,`${BASE}/u183.jpg`,
 ];
 
 function shuffle<T>(arr: T[]): T[] {
@@ -103,6 +105,7 @@ export default function NuestrasCreacionesPage() {
                 fill
                 className="object-cover"
                 sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+                unoptimized
               />
             </div>
           ))}

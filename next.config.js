@@ -2,7 +2,13 @@
 const nextConfig = {
   reactStrictMode: true,
   images: {
-    remotePatterns: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'cjqmterrgrthhpxmaoxc.supabase.co',
+        pathname: '/storage/v1/object/public/**',
+      },
+    ],
   },
   i18n: {
     locales: ['es', 'ca'],
