@@ -111,7 +111,7 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
     const supabase = createClient();
     // Delete stored files first
     const { data: forms } = await supabase.from('consent_forms').select('doc_storage_path').eq('client_id', params.id);
-    const paths = (forms || []).map(f => f.doc_storage_path).filter(Boolean);
+    const paths = (forms || []).map((f: { doc_storage_path: string }) => f.doc_storage_path).filter(Boolean);
     if (paths.length) await supabase.storage.from('client-documents').remove(paths);
     // Delete DB records
     await supabase.from('consent_forms').delete().eq('client_id', params.id);
