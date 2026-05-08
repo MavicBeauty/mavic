@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 export default function NuevoClientePage() {
   const router = useRouter();
@@ -17,15 +18,11 @@ export default function NuevoClientePage() {
     cp: '',
     provincia: '',
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,39 +30,36 @@ export default function NuevoClientePage() {
     setError('');
     setLoading(true);
 
-    try {
-      // For now, just simulate creating a client
-      console.log('Creating client:', formData);
+    const supabase = createClient();
+    const { data, error: dbError } = await supabase
+      .from('clients')
+      .insert([formData])
+      .select('id')
+      .single();
 
-      // Mock success - redirect to client profile
-      setTimeout(() => {
-        router.push('/admin/clientes');
-      }, 1000);
-    } catch (err: any) {
-      setError(err.message || 'Error al crear cliente');
+    if (dbError) {
+      setError('Error al crear cliente: ' + dbError.message);
       setLoading(false);
+      return;
     }
+
+    router.push(`/admin/clientes/${data.id}`);
   };
 
   return (
     <div className="min-h-screen bg-mavic-beige">
-      {/* Header */}
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Nuevo Cliente</h1>
-            <p className="text-white/80 mt-1">Crear cliente y consentimiento</p>
+            <p className="text-white/80 mt-1">Registrar nuevo cliente</p>
           </div>
-          <Link
-            href="/admin/clientes"
-            className="text-white hover:text-gray-100 font-semibold transition"
-          >
+          <Link href="/admin/clientes" className="text-white hover:text-gray-100 font-semibold transition">
             ← Volver
           </Link>
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-2xl mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-8">
           {error && (
@@ -75,17 +69,11 @@ export default function NuevoClientePage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Personal Info Section */}
             <div>
-              <h2 className="text-xl font-bold text-mavic-black mb-4">
-                Información Personal
-              </h2>
-
+              <h2 className="text-xl font-bold text-mavic-black mb-4">Información Personal</h2>
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Nombre *
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre *</label>
                   <input
                     type="text"
                     name="name"
@@ -96,11 +84,8 @@ export default function NuevoClientePage() {
                     disabled={loading}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Apellidos
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Apellidos</label>
                   <input
                     type="text"
                     name="apellidos"
@@ -110,11 +95,8 @@ export default function NuevoClientePage() {
                     disabled={loading}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Teléfono *
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Teléfono *</label>
                   <input
                     type="tel"
                     name="phone"
@@ -125,11 +107,8 @@ export default function NuevoClientePage() {
                     disabled={loading}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    DNI/NIE
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">DNI/NIE</label>
                   <input
                     type="text"
                     name="dni"
@@ -139,11 +118,8 @@ export default function NuevoClientePage() {
                     disabled={loading}
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Fecha de Nacimiento
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha de Nacimiento</label>
                   <input
                     type="date"
                     name="fecha_nacimiento"
@@ -156,17 +132,11 @@ export default function NuevoClientePage() {
               </div>
             </div>
 
-            {/* Address Section */}
             <div>
-              <h2 className="text-xl font-bold text-mavic-black mb-4">
-                Dirección
-              </h2>
-
+              <h2 className="text-xl font-bold text-mavic-black mb-4">Dirección</h2>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Dirección
-                  </label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Dirección</label>
                   <input
                     type="text"
                     name="direccion"
@@ -176,12 +146,9 @@ export default function NuevoClientePage() {
                     disabled={loading}
                   />
                 </div>
-
                 <div className="grid md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Población
-                    </label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Población</label>
                     <input
                       type="text"
                       name="poblacion"
@@ -191,11 +158,8 @@ export default function NuevoClientePage() {
                       disabled={loading}
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Código Postal
-                    </label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Código Postal</label>
                     <input
                       type="text"
                       name="cp"
@@ -205,11 +169,8 @@ export default function NuevoClientePage() {
                       disabled={loading}
                     />
                   </div>
-
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Provincia
-                    </label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Provincia</label>
                     <input
                       type="text"
                       name="provincia"
@@ -223,7 +184,6 @@ export default function NuevoClientePage() {
               </div>
             </div>
 
-            {/* Submit */}
             <div className="flex gap-4 pt-6">
               <button
                 type="submit"
@@ -232,7 +192,6 @@ export default function NuevoClientePage() {
               >
                 {loading ? 'Guardando...' : 'Crear Cliente'}
               </button>
-
               <Link
                 href="/admin/clientes"
                 className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-800 font-bold py-3 px-4 rounded-lg transition text-center"
@@ -241,10 +200,7 @@ export default function NuevoClientePage() {
               </Link>
             </div>
           </form>
-
-          <p className="text-sm text-gray-500 mt-6 text-center">
-            * Campos obligatorios
-          </p>
+          <p className="text-sm text-gray-500 mt-6 text-center">* Campos obligatorios</p>
         </div>
       </main>
     </div>

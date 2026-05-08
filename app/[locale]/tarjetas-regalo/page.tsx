@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 export default function TarjetasRegaloPage() {
   const [step, setStep] = useState<'form' | 'confirmation'>('form');
@@ -49,10 +50,21 @@ export default function TarjetasRegaloPage() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Here you would normally send the data to your API
-    console.log('Gift card request:', formData);
+    const supabase = createClient();
+    const amount = Number(formData.amount === 'custom' ? formData.customAmount : formData.amount);
+    await supabase.from('gift_cards').insert([{
+      amount,
+      sender_name: formData.sender_name,
+      receiver_name: formData.receiver_name,
+      message: formData.message,
+      delivery_type: formData.delivery_type,
+      payment_method: formData.payment_method,
+      customer_email: formData.customer_email,
+      status: 'pending',
+      gc_number: '',
+    }]);
     setStep('confirmation');
   };
 
