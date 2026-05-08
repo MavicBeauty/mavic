@@ -1,8 +1,38 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFDocument } from 'pdf-lib';
+import {
+  Document, Packer, Paragraph, TextRun, ImageRun,
+  Table, TableRow, TableCell, WidthType, BorderStyle,
+  AlignmentType, HeadingLevel, ShadingType,
+} from 'docx';
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
+
+function fieldRow(label: string, value: string) {
+  return new TableRow({
+    children: [
+      new TableCell({
+        width: { size: 35, type: WidthType.PERCENTAGE },
+        shading: { type: ShadingType.SOLID, color: 'F5EDD6' },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          left: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          right: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+        },
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 20 })] })],
+      }),
+      new TableCell({
+        width: { size: 65, type: WidthType.PERCENTAGE },
+        borders: {
+          top: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          bottom: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          left: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+          right: { style: BorderStyle.SINGLE, size: 1, color: 'E8D5B0' },
+        },
+        children: [new Paragraph({ children: [new TextRun({ text: value || '—', size: 20 })] })],
+      }),
+    ],
+  });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -13,41 +43,83 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
-    // Load base PDF
-    const pdfPath = path.join(process.cwd(), 'public', 'forms', 'CONSENTIMLASER_form.pdf');
-    const pdfBytes = fs.readFileSync(pdfPath);
-    const pdfDoc = await PDFDocument.load(pdfBytes, { throwOnInvalidObject: false });
+    const fechaDoc = new Date().toLocaleDateString('es-ES', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
 
-    // Fill form fields and embed signature
-    let filledPdfBytes: Uint8Array;
-    try {
-      const form = pdfDoc.getForm();
+    const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
+    const sigBuffer = Buffer.from(sigBase64, 'base64');
 
-      try { form.getTextField('Nombre').setText(nombre); } catch { /* skip */ }
-      try { form.getTextField('DNI').setText(dni); } catch { /* skip */ }
-      try { form.getTextField('Centro').setText('Mavic Beauty & Nails'); } catch { /* skip */ }
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: [
+          // Header
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 100 },
+            children: [new TextRun({ text: 'MAVIC BEAUTY & NAILS', bold: true, size: 32, color: 'C9A84C' })],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 60 },
+            children: [new TextRun({ text: 'Plaça de l\'Església, 11 · 08110 Montcada i Reixac, Barcelona', size: 18, color: '666666' })],
+          }),
+          new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 200, after: 300 },
+            children: [new TextRun({ text: 'CONSENTIMIENTO INFORMADO — DEPILACIÓN LÁSER', bold: true, size: 26, color: 'F8B4C8' })],
+          }),
 
-      // Embed signature image at the FirmaPaciente field location
-      try {
-        const sigField = form.getField('FirmaPaciente');
-        const widgets = sigField.acroField.getWidgets();
-        if (widgets.length > 0) {
-          const rect = widgets[0].getRectangle();
-          const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
-          const sigBytes = Buffer.from(sigBase64, 'base64');
-          const sigImage = await pdfDoc.embedPng(sigBytes);
-          const page = pdfDoc.getPages()[pdfDoc.getPageCount() - 1];
-          page.drawImage(sigImage, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-        }
-      } catch { /* signature field not fillable — skip */ }
+          // Client data table
+          new Paragraph({ spacing: { before: 200, after: 100 }, children: [new TextRun({ text: 'DATOS DEL PACIENTE', bold: true, size: 22, color: '1A1A1A' })] }),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            rows: [
+              fieldRow('Nombre completo', nombre),
+              fieldRow('DNI / NIE', dni),
+              fieldRow('Teléfono', telefono),
+              fieldRow('Fecha de nacimiento', fecha_nacimiento ? new Date(fecha_nacimiento).toLocaleDateString('es-ES') : ''),
+              fieldRow('Dirección', [direccion, poblacion, cp].filter(Boolean).join(', ')),
+              fieldRow('Centro', 'Mavic Beauty & Nails'),
+            ],
+          }),
 
-      try { form.flatten(); } catch { /* skip flatten if it fails */ }
+          // Consent text
+          new Paragraph({ spacing: { before: 400, after: 100 }, children: [new TextRun({ text: 'DECLARACIÓN DE CONSENTIMIENTO', bold: true, size: 22 })] }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({
+              text: 'Yo, el/la abajo firmante, declaro haber sido informado/a sobre el tratamiento de depilación láser, sus posibles efectos secundarios y contraindicaciones. Confirmo que no padezco ninguna de las contraindicaciones indicadas y doy mi consentimiento para recibir el tratamiento en Mavic Beauty & Nails.',
+              size: 20,
+            })],
+          }),
+          new Paragraph({
+            spacing: { after: 160 },
+            children: [new TextRun({
+              text: 'Mis datos personales serán tratados de conformidad con la LOPD y el RGPD únicamente para la gestión de mi historial de tratamientos.',
+              size: 20,
+            })],
+          }),
 
-      filledPdfBytes = await pdfDoc.save();
-    } catch {
-      // If PDF manipulation fails entirely, save original PDF as fallback
-      filledPdfBytes = pdfBytes;
-    }
+          // Signature
+          new Paragraph({ spacing: { before: 400, after: 100 }, children: [new TextRun({ text: 'FIRMA DEL PACIENTE', bold: true, size: 22 })] }),
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: sigBuffer,
+                transformation: { width: 220, height: 70 },
+                type: 'png',
+              }),
+            ],
+          }),
+          new Paragraph({ spacing: { before: 100 }, children: [new TextRun({ text: `Firmado digitalmente el ${fechaDoc}`, size: 18, color: '666666', italics: true })] }),
+        ],
+      }],
+    });
+
+    const docBuffer = await Packer.toBuffer(doc);
 
     // Save to Supabase
     const supabase = createClient(
@@ -76,19 +148,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: clientError.message }, { status: 500 });
     }
 
-    // Upload PDF to Supabase Storage
-    const fileName = `consentimiento_${clientData.id}_${Date.now()}.pdf`;
+    // Upload DOCX to Supabase Storage
+    const fileName = `consentimiento_${clientData.id}_${Date.now()}.docx`;
     const { error: uploadError } = await supabase.storage
       .from('client-documents')
-      .upload(fileName, filledPdfBytes, {
-        contentType: 'application/pdf',
+      .upload(fileName, docBuffer, {
+        contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         upsert: false,
       });
 
-    let docPath = '';
-    if (!uploadError) {
-      docPath = fileName;
-    }
+    const docPath = uploadError ? '' : fileName;
 
     // Insert consent form record
     const { error: consentError } = await supabase.from('consent_forms').insert([{
