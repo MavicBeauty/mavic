@@ -33,3 +33,6 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #b8942f;
 }
+
+/* Hide Booksy's default floating button — we use our own trigger */
+.booksy-widget-button { display: none !important; }

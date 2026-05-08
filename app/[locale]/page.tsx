@@ -33,17 +33,18 @@ export default function Home() {
     const container = booksyRef.current;
 
     const script = document.createElement('script');
-    script.src = 'https://booksy.com/widget-2021/code.js?id=97502&country=es&lang=es&mode=inline';
+    script.src = 'https://booksy.com/widget-2021/code.js?id=97502&country=es&lang=es&mode=dialog';
     script.async = true;
-    script.onload = () => console.log('[Booksy] script loaded OK');
-    script.onerror = (e) => console.error('[Booksy] script load error', e);
 
-    // Insert inside container so the widget renders here (it inserts after its own <script> tag)
     container.appendChild(script);
-    console.log('[Booksy] script injected into container');
 
     return () => { script.remove(); };
   }, []);
+
+  const openBooksy = () => {
+    const btn = document.querySelector('.booksy-widget-button') as HTMLElement | null;
+    btn?.click();
+  };
 
 
   const navLinks = [
@@ -154,17 +155,24 @@ export default function Home() {
       </section>
 
       {/* ── BOOKSY WIDGET ── */}
-      <section id="reservas" className="py-16 px-4 bg-gradient-to-b from-mavic-pink-light to-white">
-        <div className="max-w-4xl mx-auto text-center">
+      <section id="reservas" className="py-20 px-4 bg-gradient-to-b from-mavic-pink-light to-white">
+        <div className="max-w-2xl mx-auto text-center">
           <p className="text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">Reserva online</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-mavic-black mb-2">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-mavic-black mb-4">
             ¿Lista para tu próxima cita?
           </h2>
-          <p className="text-gray-500 mb-8">Elige tu servicio, día y hora en segundos — sin esperas, sin llamadas.</p>
-          <div className="bg-white rounded-2xl shadow-xl p-2 min-h-[500px]">
-            <div ref={booksyRef} className="w-full" />
-          </div>
-          <p className="text-gray-400 text-xs mt-4">Powered by Booksy</p>
+          <p className="text-gray-500 mb-10 text-lg">
+            Elige tu servicio, día y hora en segundos — sin esperas, sin llamadas.
+          </p>
+          <button
+            onClick={openBooksy}
+            className="inline-flex items-center gap-3 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-4 px-12 rounded-full text-lg transition shadow-2xl hover:shadow-mavic-pink/40 hover:-translate-y-0.5 transform">
+            <span>📅</span>
+            <span>Reservar Ahora</span>
+          </button>
+          <p className="text-gray-400 text-xs mt-6">Powered by Booksy · Rápido y sin registro</p>
+          {/* Hidden Booksy script container — dialog mode creates its own button + overlay */}
+          <div ref={booksyRef} className="hidden" />
         </div>
       </section>
 
