@@ -109,6 +109,11 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
     if (!confirm(`¿Eliminar a ${client?.name} ${client?.apellidos}? Se borrarán también sus sesiones y consentimiento. Esta acción no se puede deshacer.`)) return;
     setDeleting(true);
     const supabase = createClient();
+    // Delete stored files first
+    const { data: forms } = await supabase.from('consent_forms').select('doc_storage_path').eq('client_id', params.id);
+    const paths = (forms || []).map(f => f.doc_storage_path).filter(Boolean);
+    if (paths.length) await supabase.storage.from('client-documents').remove(paths);
+    // Delete DB records
     await supabase.from('consent_forms').delete().eq('client_id', params.id);
     await supabase.from('clinical_sessions').delete().eq('client_id', params.id);
     await supabase.from('clients').delete().eq('id', params.id);

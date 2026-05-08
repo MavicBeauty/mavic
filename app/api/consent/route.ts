@@ -26,27 +26,27 @@ export async function POST(req: NextRequest) {
     const fontSize = 10;
     const textColor = rgb(0, 0, 0);
 
-    // Stamp text directly at text-line positions extracted from PDF stream analysis
+    // Stamp text at positions from PDF stream analysis (y nudged up +4 from baseline)
     // Line y=749: "En [city], a [date]"
-    page.drawText('Montcada i Reixac', { x: 68, y: 749, size: fontSize, font, color: textColor });
+    page.drawText('Montcada i Reixac', { x: 68, y: 753, size: fontSize, font, color: textColor });
     const now = new Date();
     const dateStr = `${now.getDate()} de ${now.toLocaleString('es-ES', { month: 'long' })} de ${now.getFullYear()}`;
-    page.drawText(dateStr, { x: 355, y: 749, size: fontSize, font, color: textColor });
+    page.drawText(dateStr, { x: 195, y: 753, size: fontSize, font, color: textColor });
 
     // Line y=727: "D/Dña: [name]"
-    page.drawText(nombre, { x: 98, y: 727, size: fontSize, font, color: textColor });
+    page.drawText(nombre, { x: 98, y: 731, size: fontSize, font, color: textColor });
 
     // Line y=705: "DNI: [dni]"
-    page.drawText(dni, { x: 85, y: 705, size: fontSize, font, color: textColor });
+    page.drawText(dni, { x: 85, y: 709, size: fontSize, font, color: textColor });
 
     // Line y=683: "...en el centro [clinic]"
-    page.drawText('Mavic Beauty & Nails', { x: 320, y: 683, size: fontSize, font, color: textColor });
+    page.drawText('Mavic Beauty & Nails', { x: 320, y: 687, size: fontSize, font, color: textColor });
 
-    // Signature — doubled size, at FIRMA DEL PACIENTE box (right column, above y=63 label)
+    // Signature — just below "FIRMA DEL PACIENTE" label (y=63), right column
     const sigBase64 = signatureDataUrl.replace(/^data:image\/png;base64,/, '');
     const sigBytes = Buffer.from(sigBase64, 'base64');
     const sigImage = await pdfDoc.embedPng(sigBytes);
-    page.drawImage(sigImage, { x: 390, y: 68, width: 200, height: 50 });
+    page.drawImage(sigImage, { x: 390, y: 10, width: 200, height: 50 });
 
     const docBuffer = await pdfDoc.save();
 
