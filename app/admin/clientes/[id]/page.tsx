@@ -21,6 +21,7 @@ interface ConsentForm {
   id: string;
   created_at: string;
   form_data: Record<string, string>;
+  doc_storage_path: string;
 }
 
 interface ClientProfile {
@@ -35,6 +36,20 @@ interface ClientProfile {
   cp?: string;
   provincia?: string;
   created_at: string;
+}
+
+function DownloadConsentButton({ path }: { path: string }) {
+  const supabase = createClient();
+  const handleDownload = async () => {
+    const { data } = await supabase.storage.from('client-documents').createSignedUrl(path, 60);
+    if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+  };
+  return (
+    <button onClick={handleDownload}
+      className="text-mavic-pink hover:text-mavic-pink/70 font-semibold text-sm transition">
+      Descargar PDF →
+    </button>
+  );
 }
 
 export default function ClientProfilePage({ params }: { params: { id: string } }) {
@@ -143,13 +158,18 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
             <h2 className="text-xl font-bold text-mavic-black">Consentimiento Informado</h2>
           </div>
           {consent ? (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-600">
-                Firmado el {new Date(consent.created_at).toLocaleDateString('es-ES', {
-                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                })}
-              </p>
-              <p className="text-green-700 font-semibold mt-2">✓ Consentimiento registrado</p>
+            <div className="bg-gray-50 p-4 rounded-lg flex justify-between items-center">
+              <div>
+                <p className="text-green-700 font-semibold">✓ Consentimiento registrado</p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Firmado el {new Date(consent.created_at).toLocaleDateString('es-ES', {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                  })}
+                </p>
+              </div>
+              {consent.doc_storage_path && (
+                <DownloadConsentButton path={consent.doc_storage_path} />
+              )}
             </div>
           ) : (
             <div className="bg-yellow-50 border border-yellow-200 p-4 rounded-lg">
