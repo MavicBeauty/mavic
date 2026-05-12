@@ -110,23 +110,20 @@ export default function Home() {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background image */}
         <div className="absolute inset-0">
-          <Image src="/salon/local.jpeg" alt="Mavic Beauty & Nails" fill className="object-cover" priority />
+          <Image src="/salon/local.jpeg" alt="Mavic Beauty & Nails" fill className="object-cover opacity-[0.15]" priority />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
         </div>
 
+        {/* TPO FREE corner badge */}
+        <div className="absolute bottom-24 right-8 z-20">
+          <div className="w-[88px] h-[88px] rounded-full bg-black border-[3px] border-white flex flex-col items-center justify-center shadow-2xl">
+            <span className="text-white text-[11px] font-black tracking-[0.18em] uppercase leading-none">TPO</span>
+            <div className="w-9 h-px bg-white/40 my-1" />
+            <span className="text-white text-[11px] font-black tracking-[0.18em] uppercase leading-none">FREE</span>
+          </div>
+        </div>
+
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto pt-20">
-          {/* Logo */}
-          <div className="flex justify-center mb-6">
-            <Image src="/mavic-logo.png" alt="Mavic" width={90} height={90} className="drop-shadow-2xl" />
-          </div>
-
-          {/* TPO FREE badge */}
-          <div className="flex justify-center mb-5">
-            <span className="bg-black text-white text-xs font-bold px-4 py-1.5 rounded-full tracking-widest uppercase">
-              TPO FREE
-            </span>
-          </div>
-
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
             Bienvenidos a<br />
             <span className="text-mavic-pink">Mavic Beauty & Nails</span>
@@ -161,9 +158,6 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-extrabold text-mavic-black mb-4">
             ¿Lista para tu próxima cita?
           </h2>
-          <p className="text-gray-500 mb-10 text-lg">
-            Elige tu servicio, día y hora en segundos — sin esperas, sin llamadas.
-          </p>
           <button
             onClick={openBooksy}
             className="inline-flex items-center gap-3 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-4 px-12 rounded-full text-lg transition shadow-2xl hover:shadow-mavic-pink/40 hover:-translate-y-0.5 transform">
@@ -188,12 +182,11 @@ export default function Home() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
             {[
               { icon: '/icons/manicura.png', name: 'Manicura', desc: 'Semipermanente desde 14€' },
-              { icon: '/icons/pedicura.png', name: 'Pedicura', desc: 'Cuidado completo del pie' },
-              { icon: '/icons/laser.png', name: 'Depilación Láser', desc: 'Tecnología de vanguardia' },
-              { icon: '/icons/cera.png', name: 'Depilación Cera', desc: 'Suave y duradera' },
+              { icon: '/icons/pedicura.png', name: 'Pedicura', desc: 'Hecha en agua' },
+              { icon: '/icons/laser.png', name: 'Depilación Láser', desc: 'Olvidate del vello' },
               { icon: '/icons/pestanas.png', name: 'Pestañas', desc: 'Lifting y extensiones' },
               { icon: '/icons/masaje.png', name: 'Masajes', desc: 'Relax total' },
-              { icon: '/icons/facial.png', name: 'Faciales', desc: 'Piel radiante' },
+              { icon: '/icons/facial.png', name: 'Limpiezas faciales', desc: 'Piel radiante' },
             ].map((s) => (
               <div key={s.name}
                 className="bg-white rounded-2xl p-6 flex flex-col items-center text-center shadow-sm hover:shadow-md transition hover:-translate-y-1 transform group">
