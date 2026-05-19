@@ -299,9 +299,9 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
                       </p>
                     </div>
                     <div className="flex items-center gap-3">
-                      {session.form_data?.power && (
+                      {(session.form_data?.power || session.form_data?.fot) && (
                         <span className="text-sm text-mavic-pink font-semibold">
-                          {session.form_data.power} J
+                          {[session.form_data.power, session.form_data.fot ? `FOT ${session.form_data.fot}` : ''].filter(Boolean).join(' · ')}
                         </span>
                       )}
                       {session.doc_storage_path && (

@@ -44,69 +44,66 @@ export async function POST(req: NextRequest) {
     const black = rgb(0, 0, 0);
 
     const fullName = `${client.name} ${client.apellidos || ''}`.trim();
-    const sessionDate = new Date(session_date).toLocaleDateString('es-ES');
+
+    // dd/mm/yy format
+    const d = new Date(session_date);
+    const sessionDate = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
 
     // ── Header section ──
-    // Row 1: NOMBRE Y APELLIDOS  |  (right) EDAD
-    page.drawText(fullName,           { x: 175, y: 757, size: fontSize, font, color: black });
+    // Row 1: NOMBRE Y APELLIDOS
+    page.drawText(fullName,       { x: 120, y: 762, size: fontSize, font, color: black });
     // Row 2: DNI  |  AÑO NACIMIENTO  |  TELÉFONO
-    if (client.dni)       page.drawText(client.dni,  { x: 65,  y: 737, size: fontSize, font, color: black });
-    if (birthYear)        page.drawText(birthYear,   { x: 255, y: 737, size: fontSize, font, color: black });
-    if (client.phone)     page.drawText(client.phone,{ x: 420, y: 737, size: fontSize, font, color: black });
-    // Row 3: DIRECCIÓN  (no dirección field in current form data — skip)
-    // Row 4: POBLACIÓN / C.POSTAL / PROVINCIA  (skip — not collected yet)
+    if (client.dni)    page.drawText(client.dni,    { x: 55,  y: 737, size: fontSize, font, color: black });
+    if (birthYear)     page.drawText(birthYear,     { x: 255, y: 737, size: fontSize, font, color: black });
+    if (client.phone)  page.drawText(client.phone,  { x: 415, y: 737, size: fontSize, font, color: black });
 
     // ── Treatment grid ──
-    // The grid has columns: ZONAS | FOT | SES.1 … SES.9
-    // Each session occupies its own SES column (width ≈ 33 pts each, starting x ≈ 245)
+    // Columns: ZONAS (wide, left) | FOT | SES.1–SES.9 (each ≈33 pts wide, starting x≈248)
     const sesNum = Math.max(1, Math.min(9, parseInt(sesion_number as string) || 1));
-    const colX = 248 + (sesNum - 1) * 33;   // x for this session's column
-    const rowY_date  = 481;   // FECHA header row
-    const rowY_fot   = 458;   // FOT row (first data row)
-    const rowY_zonas = 458;   // ZONAS shares the first data row (left column)
-    const rowY_power = 435;   // second data row for potencia
+    const colX = 248 + (sesNum - 1) * 33;
 
-    page.drawText(sessionDate,        { x: colX, y: rowY_date,  size: 7,  font, color: black });
-    if (zonas) page.drawText(zonas,   { x: 50,   y: rowY_zonas, size: 8,  font, color: black });
-    if (fot)   page.drawText(fot,     { x: 200,  y: rowY_fot,   size: 8,  font, color: black });
-    if (power) page.drawText(power,   { x: colX, y: rowY_power, size: 8,  font, color: black });
+    page.drawText(sessionDate,                  { x: colX, y: 665, size: 7, font, color: black });
+    if (zonas) page.drawText(zonas,             { x: 50,   y: 648, size: 8, font, color: black });
+    if (fot)   page.drawText(String(fot),       { x: 205,  y: 648, size: 8, font, color: black });
+    if (power) page.drawText(String(power),     { x: colX, y: 648, size: 8, font, color: black });
 
-    // Adverse reactions — write active ones in the session column rows below the grid
+    // ── Adverse reactions — X marks on the form's pre-drawn checkboxes ──
+    // Each reaction has its own row; the X goes in the current session's column.
+    // Y positions are estimates — adjust per form feedback.
+    const reactionRowY: Record<string, number> = {
+      sun_exposure: 430,
+      wax:          410,
+      accutane:     390,
+      herpes:       370,
+      bronzers:     350,
+      bleaching:    330,
+      cosmetics:    310,
+      chloasma:     290,
+    };
     if (adverse_reactions) {
-      const labels: Record<string, string> = {
-        sun_exposure: 'Sol/UVA',
-        wax: 'Cera/Pinzas',
-        accutane: 'Roacután',
-        herpes: 'Herpes',
-        bronzers: 'Bronceadores',
-        bleaching: 'Decoloración',
-        cosmetics: 'Ac.Glicólico',
-        chloasma: 'Cloasma',
-      };
-      const active = Object.entries(adverse_reactions)
-        .filter(([, v]) => v)
-        .map(([k]) => labels[k] || k);
-      if (active.length > 0) {
-        page.drawText(`Adv: ${active.join(', ')}`,
-          { x: 50, y: 200, size: 7, font, color: rgb(0.8, 0, 0) });
+      for (const [key, isActive] of Object.entries(adverse_reactions)) {
+        if (isActive && reactionRowY[key] !== undefined) {
+          page.drawText('X', { x: colX + 3, y: reactionRowY[key], size: 9, font, color: black });
+        }
       }
     }
 
+    // ── Observations — long blue line near bottom of form ──
     if (observations) {
       const words = observations.split(' ');
       let line = '';
-      let y = 185;
+      let obsY = 128;
       for (const word of words) {
         if ((line + word).length > 90) {
-          page.drawText(line.trim(), { x: 50, y, size: 8, font, color: black });
+          page.drawText(line.trim(), { x: 50, y: obsY, size: 8, font, color: black });
           line = word + ' ';
-          y -= 12;
-          if (y < 60) break;
+          obsY -= 12;
+          if (obsY < 60) break;
         } else {
           line += word + ' ';
         }
       }
-      if (line.trim()) page.drawText(line.trim(), { x: 50, y, size: 8, font, color: black });
+      if (line.trim()) page.drawText(line.trim(), { x: 50, y: obsY, size: 8, font, color: black });
     }
 
     const docBuffer = await pdfDoc.save();
