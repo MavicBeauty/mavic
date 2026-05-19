@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useCallback } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 const BASE = 'https://cjqmterrgrthhpxmaoxc.supabase.co/storage/v1/object/public/nail-gallery';
 
@@ -58,6 +58,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function NuestrasCreacionesPage() {
   const locale = useLocale();
+  const t = useTranslations('creations');
   const [shown, setShown] = useState(() => shuffle(ALL_IMAGES).slice(0, 12));
 
   const handleMore = useCallback(() => {
@@ -73,7 +74,7 @@ export default function NuestrasCreacionesPage() {
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
-            <span className="text-sm font-medium">Inicio</span>
+            <span className="text-sm font-medium">{locale === 'ca' ? 'Inici' : 'Inicio'}</span>
           </Link>
           <Image src="/mavic-logo.png" alt="Mavic" width={40} height={40} />
         </div>
@@ -83,14 +84,13 @@ export default function NuestrasCreacionesPage() {
         {/* Intro */}
         <div className="text-center mb-12">
           <span className="inline-block bg-mavic-pink text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest mb-4">
-            Galería
+            {locale === 'ca' ? 'Galeria' : 'Galería'}
           </span>
           <h1 className="text-4xl md:text-5xl font-extrabold text-mavic-black mb-4">
-            Nuestras Creaciones
+            {t('title')}
           </h1>
           <p className="text-gray-600 text-lg max-w-xl mx-auto">
-            Cada uña, una obra de arte. Aquí encontrarás una muestra de lo que hacemos con
-            pasión cada día en Mavic Beauty & Nails — diseños únicos hechos para ti.
+            {t('subtitle')}
           </p>
         </div>
 
@@ -120,9 +120,9 @@ export default function NuestrasCreacionesPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                 d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Mostrar más
+            {locale === 'ca' ? 'Mostrar més' : 'Mostrar más'}
           </button>
-          <p className="text-gray-400 text-sm mt-3">{ALL_IMAGES.length} creaciones en nuestra galería</p>
+          <p className="text-gray-400 text-sm mt-3">{ALL_IMAGES.length} {locale === 'ca' ? 'creacions a la nostra galeria' : 'creaciones en nuestra galería'}</p>
         </div>
       </main>
 

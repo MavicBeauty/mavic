@@ -1,41 +1,97 @@
 {
   "nav": {
     "services": "Servicios",
-    "pricing": "Precios",
+    "bookings": "Reservas",
+    "creations": "Nuestras Creaciones",
     "giftCards": "Tarjetas Regalo",
     "contact": "Contacto"
   },
   "hero": {
-    "title": "MAVIC Beauty & Nails",
-    "subtitle": "Salón de Estética, Belleza y Mucho Más",
-    "cta": "Pide tu cita",
-    "description": "Especialistas en manicura, pedicura, depilación láser y tratamientos de belleza profesionales."
+    "welcome": "Bienvenidos a",
+    "subtitle": "Centro de uñas, depilación láser y muchas más oportunidades de ponerte bella en nuestro salón.",
+    "promo": "✨ Tu manicura ideal con esmalte semipermanente, desde 14€",
+    "servicesBtn": "Nuestros Servicios"
+  },
+  "booksy": {
+    "tag": "Reserva online",
+    "title": "¿Lista para tu próxima cita?",
+    "cta": "Reservar Ahora",
+    "poweredBy": "Powered by Booksy · Rápido y sin registro"
   },
   "services": {
+    "tag": "Lo que hacemos",
     "title": "Nuestros Servicios",
-    "subtitle": "Todos nuestros servicios realizados por profesionales certificadas"
-  },
-  "pricing": {
-    "title": "Nuestros Precios",
-    "subtitle": "Consulta nuestras tarifas actuales"
-  },
-  "promotions": {
-    "title": "Ofertas Especiales",
-    "subtitle": "Descubre nuestras promociones vigentes"
+    "items": {
+      "manicura":  { "name": "Manicura",           "desc": "Semipermanente desde 14€" },
+      "pedicura":  { "name": "Pedicura",            "desc": "Hecha en agua" },
+      "laser":     { "name": "Depilación Láser",    "desc": "Olvídate del vello" },
+      "pestanas":  { "name": "Pestañas",             "desc": "Lifting y extensiones" },
+      "masajes":   { "name": "Masajes",              "desc": "Relax total" },
+      "facial":    { "name": "Limpiezas faciales",   "desc": "Piel radiante" }
+    },
+    "creationsName": "Nuestras Creaciones",
+    "creationsDesc": "Ver galería →"
   },
   "giftCards": {
+    "tag": "El regalo perfecto",
     "title": "Tarjetas Regalo",
+    "description": "Regala una experiencia de belleza única. Elige tu diseño favorito.",
+    "request": "Solicitar Tarjeta Regalo",
     "subtitle": "Regala belleza y bienestar",
-    "cta": "Comprar Tarjeta Regalo"
+    "cta": "Comprar Tarjeta Regalo",
+    "pageTitle": "Tarjeta Regalo",
+    "pageSubtitle": "Regala una experiencia de belleza única en Mavic Beauty & Nails",
+    "amountLabel": "Importe de la tarjeta",
+    "customAmount": "Otro importe",
+    "customPlaceholder": "Ej: 75",
+    "senderLabel": "De parte de",
+    "senderPlaceholder": "Tu nombre",
+    "receiverLabel": "Para",
+    "receiverPlaceholder": "Nombre del destinatario",
+    "messageLabel": "Mensaje personal (opcional)",
+    "messagePlaceholder": "Escribe un mensaje especial...",
+    "deliveryLabel": "Tipo de entrega",
+    "deliveryDigital": "Digital (enlace de descarga)",
+    "deliveryPhysical": "Física (recoger en tienda)",
+    "paymentLabel": "Forma de pago",
+    "paymentCash": "Efectivo en tienda",
+    "paymentCard": "Tarjeta en tienda",
+    "paymentTransfer": "Transferencia bancaria",
+    "emailLabel": "Tu email (para recibir confirmación)",
+    "emailPlaceholder": "email@ejemplo.com",
+    "submitBtn": "Solicitar Tarjeta Regalo",
+    "submitting": "Enviando...",
+    "successTitle": "¡Solicitud enviada!",
+    "successMsg": "Hemos recibido tu solicitud de tarjeta regalo. Nos pondremos en contacto contigo para confirmar el pago.",
+    "backHome": "Volver al inicio",
+    "chooseDesign": "Elige el diseño que más te guste",
+    "changeDesign": "← Cambiar diseño",
+    "cardData": "Datos de la tarjeta",
+    "continue": "Continuar →",
+    "payTitle": "¿Cómo quieres pagar?",
+    "payInStore": "Pagar en el centro",
+    "payInStoreDesc": "Ven a nuestro salón y paga en persona",
+    "payWhatsapp": "Pagar por WhatsApp",
+    "payWhatsappDesc": "Te abriremos un chat con los detalles del pago",
+    "back": "← Volver",
+    "successPresential": "Puedes venir a pagar cuando quieras. Te esperamos en:",
+    "successWhatsapp": "Se ha abierto WhatsApp con los detalles. Si no se abrió,",
+    "clickHere": "haz clic aquí"
   },
   "contact": {
-    "title": "Contacto",
+    "findUs": "Encuéntranos",
     "hours": "Horario",
-    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
+    "weekdays": "Lunes — Viernes: 9:00 — 20:30",
+    "saturdays": "Sábados: 10:00 — 14:00",
+    "addressLabel": "Dirección",
     "address": "Plaça de l'Església, 11",
     "city": "08110 Montcada i Reixac, Barcelona",
+    "phoneLbl": "Teléfono",
+    "whatsappBtn": "Escríbenos por WhatsApp",
+    "instagram": "@mavicnailscenter",
+    "booksyBtn": "Reservar cita en Booksy",
+    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
     "whatsapp": "Contactar por WhatsApp",
-    "instagram": "Síguenos en Instagram",
     "booksy": "Ver citas en Booksy"
   },
   "footer": {
@@ -44,6 +100,13 @@
     "instagram": "@mavicnailscenter",
     "hours": "L-V 9:00-20:30 | S 10:00-14:00",
     "rights": "Todos los derechos reservados"
+  },
+  "creations": {
+    "title": "Nuestras Creaciones",
+    "subtitle": "Inspiración y arte en cada uña",
+    "back": "← Volver",
+    "empty": "Pronto añadiremos fotos de nuestros trabajos.",
+    "loading": "Cargando galería..."
   },
   "admin": {
     "login": "Acceso Administrador",

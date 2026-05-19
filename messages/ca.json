@@ -1,41 +1,97 @@
 {
   "nav": {
     "services": "Serveis",
-    "pricing": "Preus",
+    "bookings": "Reserves",
+    "creations": "Les nostres creacions",
     "giftCards": "Targetes Regal",
     "contact": "Contacte"
   },
   "hero": {
-    "title": "MAVIC Beauty & Nails",
-    "subtitle": "Saló d'Estètica, Bellesa i Molt Més",
-    "cta": "Demana la teva cita",
-    "description": "Especialistes en manicura, pedicura, depilació làser i tractaments de bellesa professionals."
+    "welcome": "Benvinguts a",
+    "subtitle": "Centre d'ungles, depilació làser i moltes més oportunitats de posar-te bella al nostre saló.",
+    "promo": "✨ La teva manicura ideal amb esmalt semipermanent, des de 14€",
+    "servicesBtn": "Els nostres serveis"
+  },
+  "booksy": {
+    "tag": "Reserva en línia",
+    "title": "Llesta per a la teva propera cita?",
+    "cta": "Reservar Ara",
+    "poweredBy": "Powered by Booksy · Ràpid i sense registre"
   },
   "services": {
+    "tag": "El que fem",
     "title": "Els nostres serveis",
-    "subtitle": "Tots els nostres serveis realitzats per professionals certificades"
-  },
-  "pricing": {
-    "title": "Els nostres preus",
-    "subtitle": "Consulta les nostres tarifes actuals"
-  },
-  "promotions": {
-    "title": "Ofertes Especials",
-    "subtitle": "Descobreix les nostres promocions vigents"
+    "items": {
+      "manicura":  { "name": "Manicura",          "desc": "Semipermanent des de 14€" },
+      "pedicura":  { "name": "Pedicura",           "desc": "Feta en aigua" },
+      "laser":     { "name": "Depilació Làser",    "desc": "Oblida't del pèl" },
+      "pestanas":  { "name": "Pestanyes",           "desc": "Lifting i extensions" },
+      "masajes":   { "name": "Massatges",           "desc": "Relaxació total" },
+      "facial":    { "name": "Neteges facials",     "desc": "Pell radiant" }
+    },
+    "creationsName": "Les nostres creacions",
+    "creationsDesc": "Veure galeria →"
   },
   "giftCards": {
+    "tag": "El regal perfecte",
     "title": "Targetes Regal",
+    "description": "Regala una experiència de bellesa única. Tria el teu disseny preferit.",
+    "request": "Sol·licitar Targeta Regal",
     "subtitle": "Regala bellesa i benestar",
-    "cta": "Comprar Targeta Regal"
+    "cta": "Comprar Targeta Regal",
+    "pageTitle": "Targeta Regal",
+    "pageSubtitle": "Regala una experiència de bellesa única a Mavic Beauty & Nails",
+    "amountLabel": "Import de la targeta",
+    "customAmount": "Un altre import",
+    "customPlaceholder": "Ex: 75",
+    "senderLabel": "De part de",
+    "senderPlaceholder": "El teu nom",
+    "receiverLabel": "Per a",
+    "receiverPlaceholder": "Nom del destinatari",
+    "messageLabel": "Missatge personal (opcional)",
+    "messagePlaceholder": "Escriu un missatge especial...",
+    "deliveryLabel": "Tipus de lliurament",
+    "deliveryDigital": "Digital (enllaç de descàrrega)",
+    "deliveryPhysical": "Físic (recollir a la botiga)",
+    "paymentLabel": "Forma de pagament",
+    "paymentCash": "Efectiu a la botiga",
+    "paymentCard": "Targeta a la botiga",
+    "paymentTransfer": "Transferència bancària",
+    "emailLabel": "El teu email (per rebre confirmació)",
+    "emailPlaceholder": "email@exemple.com",
+    "submitBtn": "Sol·licitar Targeta Regal",
+    "submitting": "Enviant...",
+    "successTitle": "Sol·licitud enviada!",
+    "successMsg": "Hem rebut la teva sol·licitud de targeta regal. Ens posarem en contacte amb tu per confirmar el pagament.",
+    "backHome": "Tornar a l'inici",
+    "chooseDesign": "Tria el disseny que més t'agradi",
+    "changeDesign": "← Canviar disseny",
+    "cardData": "Dades de la targeta",
+    "continue": "Continuar →",
+    "payTitle": "Com vols pagar?",
+    "payInStore": "Pagar al centre",
+    "payInStoreDesc": "Vine al nostre saló i paga en persona",
+    "payWhatsapp": "Pagar per WhatsApp",
+    "payWhatsappDesc": "T'obrrem un xat amb els detalls del pagament",
+    "back": "← Tornar",
+    "successPresential": "Pots venir a pagar quan vulguis. T'esperem a:",
+    "successWhatsapp": "S'ha obert WhatsApp amb els detalls. Si no s'ha obert,",
+    "clickHere": "fes clic aquí"
   },
   "contact": {
-    "title": "Contacte",
+    "findUs": "Troba'ns",
     "hours": "Horari",
-    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
+    "weekdays": "Dilluns — Divendres: 9:00 — 20:30",
+    "saturdays": "Dissabtes: 10:00 — 14:00",
+    "addressLabel": "Adreça",
     "address": "Plaça de l'Església, 11",
     "city": "08110 Montcada i Reixac, Barcelona",
+    "phoneLbl": "Telèfon",
+    "whatsappBtn": "Escriu-nos per WhatsApp",
+    "instagram": "@mavicnailscenter",
+    "booksyBtn": "Reservar cita a Booksy",
+    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
     "whatsapp": "Contactar per WhatsApp",
-    "instagram": "Segueix-nos a Instagram",
     "booksy": "Veure cites a Booksy"
   },
   "footer": {
@@ -44,6 +100,13 @@
     "instagram": "@mavicnailscenter",
     "hours": "L-V 9:00-20:30 | S 10:00-14:00",
     "rights": "Tots els drets reservats"
+  },
+  "creations": {
+    "title": "Les nostres creacions",
+    "subtitle": "Inspiració i art a cada ungla",
+    "back": "← Tornar",
+    "empty": "Aviat afegirem fotos dels nostres treballs.",
+    "loading": "Carregant galeria..."
   },
   "admin": {
     "login": "Accés Administrador",
@@ -59,6 +122,6 @@
     "employees": "Empleats",
     "loading": "Carregant...",
     "error": "Error al connectar",
-    "success": "¡Èxit!"
+    "success": "Èxit!"
   }
 }

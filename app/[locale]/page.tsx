@@ -3,21 +3,30 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import { useLocale } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 
 interface Service {
   id: string;
   category: string;
   name_es: string;
+  name_ca: string;
   price: number;
   price_note_es: string;
+  price_note_ca: string;
   is_active: boolean;
   sort_order: number;
 }
 
 export default function Home() {
   const locale = useLocale();
+  const tNav = useTranslations('nav');
+  const tHero = useTranslations('hero');
+  const tBooksy = useTranslations('booksy');
+  const tSvc = useTranslations('services');
+  const tGc = useTranslations('giftCards');
+  const tContact = useTranslations('contact');
+  const tFooter = useTranslations('footer');
   const [menuOpen, setMenuOpen] = useState(false);
   const [services, setServices] = useState<Service[]>([]);
   const booksyRef = useRef<HTMLDivElement>(null);
@@ -48,11 +57,11 @@ export default function Home() {
 
 
   const navLinks = [
-    { href: '#servicios', label: 'Servicios' },
-    { href: '#reservas', label: 'Reservas' },
-    { href: `/${locale}/nuestras-creaciones`, label: 'Nuestras Creaciones' },
-    { href: '#tarjetas', label: 'Tarjetas Regalo' },
-    { href: '#contacto', label: 'Contacto' },
+    { href: '#servicios', label: tNav('services') },
+    { href: '#reservas',  label: tNav('bookings') },
+    { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
+    { href: '#tarjetas',  label: tNav('giftCards') },
+    { href: '#contacto',  label: tNav('contact') },
   ];
 
   return (
@@ -125,21 +134,21 @@ export default function Home() {
 
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto pt-20">
           <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg">
-            Bienvenidos a<br />
+            {tHero('welcome')}<br />
             <span className="text-mavic-pink">Mavic Beauty & Nails</span>
           </h1>
 
           <p className="text-white/90 text-lg md:text-xl mb-3 drop-shadow">
-            Centro de uñas, depilación láser y muchas más oportunidades de ponerte bella en nuestro salón.
+            {tHero('subtitle')}
           </p>
 
           <p className="text-mavic-gold font-semibold text-base md:text-lg mb-8 drop-shadow">
-            ✨ Tu manicura ideal con esmalte semipermanente, desde 14€
+            {tHero('promo')}
           </p>
 
           <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
             className="inline-block bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-3 px-10 rounded-full text-lg transition shadow-2xl hover:shadow-mavic-pink/40 hover:-translate-y-0.5 transform">
-            Nuestros Servicios
+            {tHero('servicesBtn')}
           </a>
         </div>
 
@@ -154,17 +163,17 @@ export default function Home() {
       {/* ── BOOKSY WIDGET ── */}
       <section id="reservas" className="py-20 px-4 bg-gradient-to-b from-mavic-pink-light to-white">
         <div className="max-w-2xl mx-auto text-center">
-          <p className="text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">Reserva online</p>
+          <p className="text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">{tBooksy('tag')}</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-mavic-black mb-4">
-            ¿Lista para tu próxima cita?
+            {tBooksy('title')}
           </h2>
           <button
             onClick={openBooksy}
             className="inline-flex items-center gap-3 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-4 px-12 rounded-full text-lg transition shadow-2xl hover:shadow-mavic-pink/40 hover:-translate-y-0.5 transform">
             <span>📅</span>
-            <span>Reservar Ahora</span>
+            <span>{tBooksy('cta')}</span>
           </button>
-          <p className="text-gray-400 text-xs mt-6">Powered by Booksy · Rápido y sin registro</p>
+          <p className="text-gray-400 text-xs mt-6">{tBooksy('poweredBy')}</p>
           {/* Hidden Booksy script container — dialog mode creates its own button + overlay */}
           <div ref={booksyRef} className="hidden" />
         </div>
@@ -173,28 +182,28 @@ export default function Home() {
       {/* ── SERVICES ── */}
       <section id="servicios" className="py-20 px-4 bg-mavic-beige">
         <div className="max-w-6xl mx-auto">
-          <p className="text-center text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">Lo que hacemos</p>
+          <p className="text-center text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">{tSvc('tag')}</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-center text-mavic-black mb-12">
-            Nuestros Servicios
+            {tSvc('title')}
           </h2>
 
           {/* Static category icons */}
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
-            {[
-              { icon: '/icons/manicura.png', name: 'Manicura', desc: 'Semipermanente desde 14€' },
-              { icon: '/icons/pedicura.png', name: 'Pedicura', desc: 'Hecha en agua' },
-              { icon: '/icons/laser.png', name: 'Depilación Láser', desc: 'Olvidate del vello' },
-              { icon: '/icons/pestanas.png', name: 'Pestañas', desc: 'Lifting y extensiones' },
-              { icon: '/icons/masaje.png', name: 'Masajes', desc: 'Relax total' },
-              { icon: '/icons/facial.png', name: 'Limpiezas faciales', desc: 'Piel radiante' },
-            ].map((s) => (
-              <div key={s.name}
+            {([
+              { icon: '/icons/manicura.png', key: 'manicura' },
+              { icon: '/icons/pedicura.png', key: 'pedicura' },
+              { icon: '/icons/laser.png',    key: 'laser' },
+              { icon: '/icons/pestanas.png', key: 'pestanas' },
+              { icon: '/icons/masaje.png',   key: 'masajes' },
+              { icon: '/icons/facial.png',   key: 'facial' },
+            ] as const).map((s) => (
+              <div key={s.key}
                 className="bg-white rounded-2xl p-6 flex flex-col items-center text-center shadow-sm hover:shadow-md transition hover:-translate-y-1 transform group">
                 <div className="w-14 h-14 mb-4 relative">
-                  <Image src={s.icon} alt={s.name} fill className="object-contain group-hover:scale-110 transition" />
+                  <Image src={s.icon} alt={tSvc(`items.${s.key}.name`)} fill className="object-contain group-hover:scale-110 transition" />
                 </div>
-                <h3 className="font-bold text-mavic-black mb-1">{s.name}</h3>
-                <p className="text-sm text-mavic-pink font-medium">{s.desc}</p>
+                <h3 className="font-bold text-mavic-black mb-1">{tSvc(`items.${s.key}.name`)}</h3>
+                <p className="text-sm text-mavic-pink font-medium">{tSvc(`items.${s.key}.desc`)}</p>
               </div>
             ))}
 
@@ -203,8 +212,8 @@ export default function Home() {
               <div className="w-14 h-14 mb-4 flex items-center justify-center">
                 <span className="text-3xl">💅</span>
               </div>
-              <h3 className="font-bold text-white mb-1">Nuestras Creaciones</h3>
-              <p className="text-sm text-mavic-gold font-medium">Ver galería →</p>
+              <h3 className="font-bold text-white mb-1">{tSvc('creationsName')}</h3>
+              <p className="text-sm text-mavic-gold font-medium">{tSvc('creationsDesc')}</p>
             </Link>
           </div>
 
@@ -225,9 +234,13 @@ export default function Home() {
                     <div className="space-y-2">
                       {items.map((item) => (
                         <div key={item.id} className="flex justify-between items-center py-1.5">
-                          <span className="text-gray-700 text-sm">{item.name_es}</span>
+                          <span className="text-gray-700 text-sm">
+                            {locale === 'ca' && item.name_ca ? item.name_ca : item.name_es}
+                          </span>
                           <span className="text-mavic-pink font-semibold text-sm whitespace-nowrap ml-4">
-                            {item.price_note_es ? `${item.price_note_es} ` : ''}{item.price}€
+                            {(locale === 'ca' && item.price_note_ca ? item.price_note_ca : item.price_note_es)
+                              ? `${locale === 'ca' && item.price_note_ca ? item.price_note_ca : item.price_note_es} `
+                              : ''}{item.price}€
                           </span>
                         </div>
                       ))}
@@ -243,12 +256,12 @@ export default function Home() {
       {/* ── GIFT CARDS ── */}
       <section id="tarjetas" className="py-20 px-4 bg-white">
         <div className="max-w-4xl mx-auto">
-          <p className="text-center text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">El regalo perfecto</p>
+          <p className="text-center text-mavic-pink font-semibold text-sm uppercase tracking-widest mb-2">{tGc('tag')}</p>
           <h2 className="text-3xl md:text-4xl font-extrabold text-center text-mavic-black mb-4">
-            Tarjetas Regalo
+            {tGc('title')}
           </h2>
           <p className="text-center text-gray-500 mb-10">
-            Regala una experiencia de belleza única. Elige tu diseño favorito.
+            {tGc('description')}
           </p>
 
           <div className="grid grid-cols-3 gap-4 mb-8">
@@ -262,7 +275,7 @@ export default function Home() {
           <div className="text-center">
             <Link href={`/${locale}/tarjetas-regalo`}
               className="inline-block bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-3 px-10 rounded-full transition shadow-lg">
-              Solicitar Tarjeta Regalo
+              {tGc('request')}
             </Link>
           </div>
         </div>
@@ -272,21 +285,21 @@ export default function Home() {
       <section id="contacto" className="py-20 px-4 bg-mavic-beige">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl md:text-4xl font-extrabold text-center text-mavic-black mb-12">
-            Encuéntranos
+            {tContact('findUs')}
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
             <div className="bg-white rounded-2xl p-8 shadow-sm space-y-5">
               <div>
-                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">Horario</p>
-                <p className="font-semibold text-mavic-black">Lunes — Viernes: 9:00 — 20:30</p>
-                <p className="font-semibold text-mavic-black">Sábados: 10:00 — 14:00</p>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('hours')}</p>
+                <p className="font-semibold text-mavic-black">{tContact('weekdays')}</p>
+                <p className="font-semibold text-mavic-black">{tContact('saturdays')}</p>
               </div>
               <div>
-                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">Dirección</p>
-                <p className="text-mavic-black">Plaça de l'Església, 11<br />08110 Montcada i Reixac, Barcelona</p>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('addressLabel')}</p>
+                <p className="text-mavic-black">{tContact('address')}<br />{tContact('city')}</p>
               </div>
               <div>
-                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">Teléfono</p>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('phoneLbl')}</p>
                 <p className="text-mavic-black font-semibold">643 59 19 84</p>
               </div>
             </div>
@@ -294,17 +307,17 @@ export default function Home() {
               <a href="https://wa.me/34643591984" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl font-semibold transition shadow-sm">
                 <span className="text-2xl">💬</span>
-                <span>Escríbenos por WhatsApp</span>
+                <span>{tContact('whatsappBtn')}</span>
               </a>
               <a href="https://www.instagram.com/mavicnailscenter/" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-xl font-semibold transition shadow-sm">
                 <span className="text-2xl">📸</span>
-                <span>@mavicnailscenter</span>
+                <span>{tContact('instagram')}</span>
               </a>
               <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-mavic-black text-white p-4 rounded-xl font-semibold transition shadow-sm hover:bg-gray-900">
                 <span className="text-2xl">📅</span>
-                <span>Reservar cita en Booksy</span>
+                <span>{tContact('booksyBtn')}</span>
               </a>
             </div>
           </div>
@@ -318,7 +331,7 @@ export default function Home() {
             <Image src="/mavic-logo.png" alt="Mavic" width={36} height={36} className="opacity-80" />
             <span className="text-sm text-gray-400">Mavic Beauty & Nails · Montcada i Reixac, Barcelona</span>
           </div>
-          <p className="text-gray-500 text-xs">© {new Date().getFullYear()} Mavic Beauty & Nails. Todos los derechos reservados.</p>
+          <p className="text-gray-500 text-xs">© {new Date().getFullYear()} Mavic Beauty & Nails. {tFooter('rights')}.</p>
         </div>
       </footer>
     </div>
