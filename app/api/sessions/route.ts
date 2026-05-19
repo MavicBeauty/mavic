@@ -43,35 +43,40 @@ export async function POST(req: NextRequest) {
     const fontSize = 10;
     const black = rgb(0, 0, 0);
 
-    const fullName = `${client.name} ${client.apellidos || ''}`.trim();
-
     // dd/mm/yy format
     const d = new Date(session_date);
     const sessionDate = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
 
-    // ── Header — positions from AcroForm field rects ──
-    // Nombre field:  rect x=130→380  y=755→770  → draw at x=132, y=758
-    // Edad field:    rect x=450→530  y=755→770  → draw at x=452, y=758  (birth year)
-    // Telefono field:rect x=130→380  y=735→750  → draw at x=132, y=738
-    // Correo field:  rect x=130→380  y=715→730  → draw at x=132, y=718  (reused for DNI)
-    page.drawText(fullName,          { x: 132, y: 758, size: fontSize, font, color: black });
-    if (birthYear)     page.drawText(birthYear,    { x: 452, y: 758, size: fontSize, font, color: black });
-    if (client.phone)  page.drawText(client.phone, { x: 132, y: 738, size: fontSize, font, color: black });
-    if (client.dni)    page.drawText(client.dni,   { x: 132, y: 718, size: fontSize, font, color: black });
+    // ── Header — positions measured from the actual PDF ──
+    // NAME box:          x=117 y=691 w=122 h=17  → text at x=119, y=694
+    // LAST NAME box:     x=315 y=690 w=210 h=18  → text at x=317, y=693
+    // DNI box:           x=98  y=660 w=93  h=16  → text at x=100, y=663
+    // AÑO NACIMIENTO box:x=284 y=662 w=50  h=12  → text at x=286, y=665
+    // TELEFONO box:      x=401 y=661 w=117 h=15  → text at x=403, y=664
+    page.drawText(client.name,              { x: 119, y: 694, size: fontSize, font, color: black });
+    if (client.apellidos)
+      page.drawText(client.apellidos,       { x: 317, y: 693, size: fontSize, font, color: black });
+    if (client.dni)
+      page.drawText(client.dni,             { x: 100, y: 663, size: fontSize, font, color: black });
+    if (birthYear)
+      page.drawText(birthYear,              { x: 286, y: 665, size: fontSize, font, color: black });
+    if (client.phone)
+      page.drawText(client.phone,           { x: 403, y: 664, size: fontSize, font, color: black });
 
-    // ── Treatment grid ──
-    // Columns: ZONAS (wide, left) | FOT | SES.1–SES.9 (each ≈33 pts wide, starting x≈248)
+    // ── Treatment grid — positions measured from the actual PDF ──
+    // FECHA DE LA SESION: x=204 y=499 w=31 h=13  → SES.1 column; each col ≈31 pts wide
+    // ZONA DE DEPILACION: x=81  y=452 w=80 h=20
+    // FOT:                x=168 y=454 w=30 h=16
+    // J (power):          x=205 y=453 w=30 h=16  → same column as FECHA (SES.1)
     const sesNum = Math.max(1, Math.min(9, parseInt(sesion_number as string) || 1));
-    const colX = 248 + (sesNum - 1) * 33;
+    const colX = 206 + (sesNum - 1) * 31; // per-session column x
 
-    page.drawText(sessionDate,                  { x: colX, y: 665, size: 7, font, color: black });
-    if (zonas) page.drawText(zonas,             { x: 50,   y: 648, size: 8, font, color: black });
-    if (fot)   page.drawText(String(fot),       { x: 205,  y: 648, size: 8, font, color: black });
-    if (power) page.drawText(String(power),     { x: colX, y: 648, size: 8, font, color: black });
+    page.drawText(sessionDate,              { x: colX, y: 502, size: 7, font, color: black });
+    if (zonas) page.drawText(zonas,         { x: 83,   y: 455, size: 7, font, color: black });
+    if (fot)   page.drawText(String(fot),   { x: 170,  y: 457, size: 7, font, color: black });
+    if (power) page.drawText(String(power), { x: colX, y: 456, size: 7, font, color: black });
 
-    // ── Adverse reactions — X marks on the form's pre-drawn checkboxes ──
-    // Each reaction has its own row; the X goes in the current session's column.
-    // Y positions are estimates — adjust per form feedback.
+    // ── Adverse reactions — X marks on checkboxes (positions estimated, least priority) ──
     const reactionRowY: Record<string, number> = {
       sun_exposure: 430,
       wax:          410,
@@ -90,7 +95,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Observations — long blue line just above the signature (FirmaPaciente y=90–115) ──
+    // ── Observations — long blue line near bottom (user to confirm exact y) ──
     if (observations) {
       const words = observations.split(' ');
       let line = '';
