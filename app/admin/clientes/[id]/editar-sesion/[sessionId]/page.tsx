@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 interface Zone { name: string; fot: string; power: string; }
 
@@ -19,17 +20,50 @@ const ADVERSE_LABELS: Record<string, string> = {
 
 const emptyZone = (): Zone => ({ name: '', fot: '', power: '' });
 
-export default function NuevaSesionPage({ params }: { params: { id: string } }) {
+const DEFAULT_REACTIONS: Record<string, boolean> = {
+  sun_exposure: false, wax: false, accutane: false, herpes: false,
+  bronzers: false, bleaching: false, cosmetics: false, chloasma: false,
+};
+
+export default function EditarSesionPage({
+  params,
+}: {
+  params: { id: string; sessionId: string };
+}) {
   const router = useRouter();
-  const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
+  const [sessionDate, setSessionDate] = useState('');
   const [zones, setZones] = useState<Zone[]>([emptyZone()]);
   const [observations, setObservations] = useState('');
-  const [adverseReactions, setAdverseReactions] = useState<Record<string, boolean>>({
-    sun_exposure: false, wax: false, accutane: false, herpes: false,
-    bronzers: false, bleaching: false, cosmetics: false, chloasma: false,
-  });
+  const [adverseReactions, setAdverseReactions] = useState<Record<string, boolean>>(DEFAULT_REACTIONS);
   const [loading, setLoading] = useState(false);
+  const [fetching, setFetching] = useState(true);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from('clinical_sessions')
+      .select('session_date, form_data')
+      .eq('id', params.sessionId)
+      .single()
+      .then(({ data }) => {
+        if (!data) { setFetching(false); return; }
+        setSessionDate(data.session_date);
+
+        const fd = data.form_data as Record<string, unknown>;
+        if (Array.isArray(fd.zones) && fd.zones.length) {
+          setZones(fd.zones as Zone[]);
+        } else if (fd.zonas) {
+          setZones([{ name: String(fd.zonas), fot: String(fd.fot || ''), power: String(fd.power || '') }]);
+        }
+
+        if (fd.observations) setObservations(String(fd.observations));
+        if (fd.adverse_reactions) {
+          setAdverseReactions({ ...DEFAULT_REACTIONS, ...(fd.adverse_reactions as Record<string, boolean>) });
+        }
+        setFetching(false);
+      });
+  }, [params.sessionId]);
 
   function updateZone(idx: number, field: keyof Zone, value: string) {
     setZones(z => z.map((zone, i) => i === idx ? { ...zone, [field]: value } : zone));
@@ -50,11 +84,10 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
     setLoading(true);
     setError('');
     try {
-      const res = await fetch('/api/sessions', {
-        method: 'POST',
+      const res = await fetch(`/api/sessions/${params.sessionId}`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_id: params.id,
           session_date: sessionDate,
           zones: filledZones,
           observations,
@@ -72,13 +105,21 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
     }
   };
 
+  if (fetching) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-mavic-beige">
+        <p className="text-gray-600">Cargando sesión...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-mavic-beige">
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Nueva Sesión Clínica</h1>
-            <p className="text-white/80 mt-1">Registrar nueva sesión de tratamiento</p>
+            <h1 className="text-3xl font-bold">Editar Sesión Clínica</h1>
+            <p className="text-white/80 mt-1">Modificar datos de la sesión</p>
           </div>
           <Link href={`/admin/clientes/${params.id}`} className="text-white hover:text-gray-100 font-semibold transition">
             ← Volver
@@ -173,7 +214,7 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
             <div className="flex gap-4 pt-6">
               <button type="submit" disabled={loading}
                 className="flex-1 bg-gradient-to-r from-mavic-pink to-mavic-gold text-white font-bold py-3 px-4 rounded-lg hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed">
-                {loading ? 'Guardando y generando PDF...' : 'Guardar Sesión'}
+                {loading ? 'Guardando y regenerando PDF...' : 'Guardar Cambios'}
               </button>
               <Link href={`/admin/clientes/${params.id}`}
                 className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-3 px-4 rounded-lg transition text-center">

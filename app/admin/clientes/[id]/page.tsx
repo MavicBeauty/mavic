@@ -10,6 +10,7 @@ interface Session {
   session_date: string;
   doc_storage_path?: string;
   form_data: {
+    zones?: Array<{ name: string; fot: string; power: string }>;
     zonas?: string;
     power?: string;
     fot?: string;
@@ -106,6 +107,17 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   const [consent, setConsent] = useState<ConsentForm | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deletingSession, setDeletingSession] = useState<string | null>(null);
+
+  const handleDeleteSession = async (sessionId: string, sessionDate: string) => {
+    if (!confirm(`¿Eliminar la sesión del ${new Date(sessionDate).toLocaleDateString('es-ES')}? Esta acción no se puede deshacer.`)) return;
+    setDeletingSession(sessionId);
+    const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    if (res.ok) {
+      setSessions(s => s.filter(sess => sess.id !== sessionId));
+    }
+    setDeletingSession(null);
+  };
 
   const handleDelete = async () => {
     if (!confirm(`¿Eliminar a ${client?.name} ${client?.apellidos}? Se borrarán también sus sesiones y consentimiento. Esta acción no se puede deshacer.`)) return;
@@ -285,36 +297,49 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
             </div>
           ) : (
             <div className="space-y-4">
-              {sessions.map((session) => (
-                <div key={session.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
-                  <div className="flex justify-between items-start mb-2">
-                    <div>
-                      <h3 className="font-bold text-mavic-black">
-                        Sesión {session.form_data?.sesion_number || '—'}
-                        {session.form_data?.zonas ? ` — ${session.form_data.zonas}` : ''}
-                      </h3>
-                      <p className="text-sm text-gray-600">
-                        {new Date(session.session_date).toLocaleDateString('es-ES', {
-                          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                        })}
-                      </p>
+              {sessions.map((session, idx) => {
+                const zonesSummary = session.form_data?.zones?.length
+                  ? session.form_data.zones.map(z => `${z.name}${z.fot ? ` FOT${z.fot}` : ''}${z.power ? ` ${z.power}` : ''}`).join(', ')
+                  : session.form_data?.zonas
+                    ? `${session.form_data.zonas}${session.form_data.power ? ` ${session.form_data.power}` : ''}${session.form_data.fot ? ` · FOT ${session.form_data.fot}` : ''}`
+                    : null;
+                return (
+                  <div key={session.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <h3 className="font-bold text-mavic-black">
+                          Sesión {sessions.length - idx}
+                          {zonesSummary ? ` — ${zonesSummary}` : ''}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {new Date(session.session_date).toLocaleDateString('es-ES', {
+                            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                          })}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {session.doc_storage_path && (
+                          <DownloadDocButton path={session.doc_storage_path} label="PDF →" />
+                        )}
+                        <Link
+                          href={`/admin/clientes/${client.id}/editar-sesion/${session.id}`}
+                          className="text-blue-500 hover:text-blue-700 font-semibold text-sm transition">
+                          Editar
+                        </Link>
+                        <button
+                          onClick={() => handleDeleteSession(session.id, session.session_date)}
+                          disabled={deletingSession === session.id}
+                          className="text-red-400 hover:text-red-600 font-semibold text-sm transition disabled:opacity-50">
+                          {deletingSession === session.id ? '...' : 'Eliminar'}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                      {(session.form_data?.power || session.form_data?.fot) && (
-                        <span className="text-sm text-mavic-pink font-semibold">
-                          {[session.form_data.power, session.form_data.fot ? `FOT ${session.form_data.fot}` : ''].filter(Boolean).join(' · ')}
-                        </span>
-                      )}
-                      {session.doc_storage_path && (
-                        <DownloadDocButton path={session.doc_storage_path} label="PDF →" />
-                      )}
-                    </div>
+                    {session.form_data?.observations && (
+                      <p className="text-gray-700 text-sm mt-2">{session.form_data.observations}</p>
+                    )}
                   </div>
-                  {session.form_data?.observations && (
-                    <p className="text-gray-700 text-sm mt-2">{session.form_data.observations}</p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
