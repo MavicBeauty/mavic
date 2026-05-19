@@ -46,7 +46,7 @@ export default function EditarSesionPage({
       .select('session_date, form_data')
       .eq('id', params.sessionId)
       .single()
-      .then(({ data }) => {
+      .then(({ data }: { data: { session_date: string; form_data: Record<string, unknown> } | null }) => {
         if (!data) { setFetching(false); return; }
         setSessionDate(data.session_date);
 
