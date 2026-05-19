@@ -8,6 +8,18 @@ function adminClient() {
   );
 }
 
+export async function GET() {
+  const supabase = adminClient();
+  const { data, error } = await supabase.storage
+    .from('nail-gallery')
+    .list('', { limit: 2000, sortBy: { column: 'created_at', order: 'desc' } });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const files = (data ?? [])
+    .filter((f) => f.name !== '.emptyFolderPlaceholder')
+    .map((f) => f.name);
+  return NextResponse.json({ files });
+}
+
 export async function POST(req: Request) {
   const formData = await req.formData();
   const files = formData.getAll('files') as File[];

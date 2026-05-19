@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useState, useEffect, useCallback } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
-import { createClient } from '@/lib/supabase/client';
 
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/nail-gallery`;
 
@@ -26,14 +25,10 @@ export default function NuestrasCreacionesPage() {
   const [selected, setSelected] = useState<string | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.storage
-      .from('nail-gallery')
-      .list('', { limit: 2000, sortBy: { column: 'created_at', order: 'desc' } })
-      .then(({ data }) => {
-        const urls = (data ?? [])
-          .filter((f) => f.name !== '.emptyFolderPlaceholder')
-          .map((f) => `${BASE}/${f.name}`);
+    fetch('/api/gallery')
+      .then((r) => r.json())
+      .then(({ files }: { files: string[] }) => {
+        const urls = (files ?? []).map((name) => `${BASE}/${name}`);
         setAllImages(urls);
         setShown(shuffle(urls).slice(0, 12));
         setLoading(false);

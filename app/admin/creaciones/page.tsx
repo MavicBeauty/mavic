@@ -2,7 +2,6 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/nail-gallery`;
 
@@ -21,11 +20,9 @@ export default function AdminCreacionesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const supabase = createClient();
-    const { data, error } = await supabase.storage.from('nail-gallery').list('', { limit: 2000, sortBy: { column: 'created_at', order: 'desc' } });
-    if (!error && data) {
-      setFiles(data.filter((f) => f.name !== '.emptyFolderPlaceholder').map((f) => ({ name: f.name, created_at: f.created_at ?? null })));
-    }
+    const res = await fetch('/api/gallery');
+    const { files } = await res.json() as { files: string[] };
+    setFiles((files ?? []).map((name) => ({ name, created_at: null })));
     setLoading(false);
   };
 
