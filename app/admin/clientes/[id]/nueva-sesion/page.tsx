@@ -27,7 +27,7 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
     if (type === 'checkbox') {
       const [section, key] = name.split('.');
@@ -122,17 +122,25 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Potencia/Energía (J)</label>
-                  <input type="text" name="power" value={formData.power} onChange={handleChange}
-                    placeholder="Ej: 18"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    disabled={loading} />
+                  <select name="power" value={formData.power} onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink bg-white"
+                    disabled={loading}>
+                    <option value="">— Seleccionar —</option>
+                    <option value="14 J">14 J</option>
+                    <option value="16 J">16 J</option>
+                    <option value="18 J">18 J</option>
+                    <option value="20 J">20 J</option>
+                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">FOT</label>
-                  <input type="text" name="fot" value={formData.fot} onChange={handleChange}
-                    placeholder="Ej: 12"
-                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                    disabled={loading} />
+                  <select name="fot" value={formData.fot} onChange={handleChange}
+                    className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink bg-white"
+                    disabled={loading}>
+                    <option value="">— Seleccionar —</option>
+                    <option value="30">30</option>
+                    <option value="100">100</option>
+                  </select>
                 </div>
               </div>
             </div>

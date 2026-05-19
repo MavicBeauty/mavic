@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     // Fetch client data for the PDF header
     const { data: client, error: clientError } = await supabase
       .from('clients')
-      .select('name, apellidos, phone, fecha_nacimiento')
+      .select('name, apellidos, phone, fecha_nacimiento, dni')
       .eq('id', client_id)
       .single();
 
@@ -29,16 +29,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Calculate age
-    let edad = '';
-    if (client.fecha_nacimiento) {
-      const birth = new Date(client.fecha_nacimiento);
-      const today = new Date();
-      let age = today.getFullYear() - birth.getFullYear();
-      const m = today.getMonth() - birth.getMonth();
-      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
-      edad = String(age);
-    }
+    // Extract birth year only
+    const birthYear = client.fecha_nacimiento
+      ? String(new Date(client.fecha_nacimiento).getFullYear())
+      : '';
 
     // Load PDF template
     const pdfPath = path.join(process.cwd(), 'public', 'forms', 'HISTORIALASER_form.pdf');
@@ -50,24 +44,34 @@ export async function POST(req: NextRequest) {
     const black = rgb(0, 0, 0);
 
     const fullName = `${client.name} ${client.apellidos || ''}`.trim();
-
-    // Stamp header fields at known AcroForm Rect positions
-    page.drawText(fullName,       { x: 132, y: 758, size: fontSize, font, color: black });
-    page.drawText(edad,           { x: 452, y: 758, size: fontSize, font, color: black });
-    page.drawText(client.phone,   { x: 132, y: 738, size: fontSize, font, color: black });
-
-    // Stamp session data below the header (table area, estimated positions)
     const sessionDate = new Date(session_date).toLocaleDateString('es-ES');
-    page.drawText(`Sesión ${sesion_number || '—'}  |  Fecha: ${sessionDate}  |  Zonas: ${zonas}`,
-      { x: 50, y: 678, size: 9, font, color: black });
-    if (fot) {
-      page.drawText(`FOT: ${fot}`, { x: 50, y: 664, size: 9, font, color: black });
-    }
-    if (power) {
-      page.drawText(`Potencia: ${power} J`, { x: fot ? 140 : 50, y: 664, size: 9, font, color: black });
-    }
 
-    // Adverse reactions
+    // ── Header section ──
+    // Row 1: NOMBRE Y APELLIDOS  |  (right) EDAD
+    page.drawText(fullName,           { x: 175, y: 757, size: fontSize, font, color: black });
+    // Row 2: DNI  |  AÑO NACIMIENTO  |  TELÉFONO
+    if (client.dni)       page.drawText(client.dni,  { x: 65,  y: 737, size: fontSize, font, color: black });
+    if (birthYear)        page.drawText(birthYear,   { x: 255, y: 737, size: fontSize, font, color: black });
+    if (client.phone)     page.drawText(client.phone,{ x: 420, y: 737, size: fontSize, font, color: black });
+    // Row 3: DIRECCIÓN  (no dirección field in current form data — skip)
+    // Row 4: POBLACIÓN / C.POSTAL / PROVINCIA  (skip — not collected yet)
+
+    // ── Treatment grid ──
+    // The grid has columns: ZONAS | FOT | SES.1 … SES.9
+    // Each session occupies its own SES column (width ≈ 33 pts each, starting x ≈ 245)
+    const sesNum = Math.max(1, Math.min(9, parseInt(sesion_number as string) || 1));
+    const colX = 248 + (sesNum - 1) * 33;   // x for this session's column
+    const rowY_date  = 481;   // FECHA header row
+    const rowY_fot   = 458;   // FOT row (first data row)
+    const rowY_zonas = 458;   // ZONAS shares the first data row (left column)
+    const rowY_power = 435;   // second data row for potencia
+
+    page.drawText(sessionDate,        { x: colX, y: rowY_date,  size: 7,  font, color: black });
+    if (zonas) page.drawText(zonas,   { x: 50,   y: rowY_zonas, size: 8,  font, color: black });
+    if (fot)   page.drawText(fot,     { x: 200,  y: rowY_fot,   size: 8,  font, color: black });
+    if (power) page.drawText(power,   { x: colX, y: rowY_power, size: 8,  font, color: black });
+
+    // Adverse reactions — write active ones in the session column rows below the grid
     if (adverse_reactions) {
       const labels: Record<string, string> = {
         sun_exposure: 'Sol/UVA',
@@ -83,22 +87,21 @@ export async function POST(req: NextRequest) {
         .filter(([, v]) => v)
         .map(([k]) => labels[k] || k);
       if (active.length > 0) {
-        page.drawText(`Advertencias: ${active.join(', ')}`,
-          { x: 50, y: 650, size: 8, font, color: rgb(0.8, 0, 0) });
+        page.drawText(`Adv: ${active.join(', ')}`,
+          { x: 50, y: 200, size: 7, font, color: rgb(0.8, 0, 0) });
       }
     }
 
     if (observations) {
-      // Wrap long observations text
       const words = observations.split(' ');
       let line = '';
-      let y = 636;
+      let y = 185;
       for (const word of words) {
-        if ((line + word).length > 80) {
+        if ((line + word).length > 90) {
           page.drawText(line.trim(), { x: 50, y, size: 8, font, color: black });
           line = word + ' ';
           y -= 12;
-          if (y < 130) break;
+          if (y < 60) break;
         } else {
           line += word + ' ';
         }
