@@ -76,33 +76,36 @@ export async function POST(req: NextRequest) {
     if (fot)   page.drawText(String(fot),   { x: 170,  y: 457, size: 7, font, color: black });
     if (power) page.drawText(String(power), { x: colX, y: 456, size: 7, font, color: black });
 
-    // ── Adverse reactions — X marks on checkboxes (positions estimated, least priority) ──
+    // ── Adverse reactions — X marks on checkboxes ──
+    // Rows estimated; measure one checkbox with the PDF tool and adjust spacing.
+    // Each reaction row is ~22 pts apart starting from first checkbox y.
+    const checkboxX = colX + 3;
     const reactionRowY: Record<string, number> = {
-      sun_exposure: 430,
-      wax:          410,
-      accutane:     390,
-      herpes:       370,
-      bronzers:     350,
-      bleaching:    330,
-      cosmetics:    310,
-      chloasma:     290,
+      sun_exposure: 405,
+      wax:          383,
+      accutane:     361,
+      herpes:       339,
+      bronzers:     317,
+      bleaching:    295,
+      cosmetics:    273,
+      chloasma:     251,
     };
     if (adverse_reactions) {
       for (const [key, isActive] of Object.entries(adverse_reactions)) {
         if (isActive && reactionRowY[key] !== undefined) {
-          page.drawText('X', { x: colX + 3, y: reactionRowY[key], size: 9, font, color: black });
+          page.drawText('X', { x: checkboxX, y: reactionRowY[key], size: 9, font, color: black });
         }
       }
     }
 
-    // ── Observations — long blue line near bottom (user to confirm exact y) ──
+    // ── Observations — long blue line near bottom ──
     if (observations) {
       const words = observations.split(' ');
       let line = '';
-      let obsY = 145;
+      let obsY = 97;
       for (const word of words) {
         if ((line + word).length > 90) {
-          page.drawText(line.trim(), { x: 50, y: obsY, size: 8, font, color: black });
+          page.drawText(line.trim(), { x: 110, y: obsY, size: 8, font, color: black });
           line = word + ' ';
           obsY -= 12;
           if (obsY < 60) break;
@@ -110,7 +113,7 @@ export async function POST(req: NextRequest) {
           line += word + ' ';
         }
       }
-      if (line.trim()) page.drawText(line.trim(), { x: 50, y: obsY, size: 8, font, color: black });
+      if (line.trim()) page.drawText(line.trim(), { x: 110, y: obsY, size: 8, font, color: black });
     }
 
     const docBuffer = await pdfDoc.save();
