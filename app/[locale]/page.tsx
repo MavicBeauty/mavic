@@ -58,11 +58,12 @@ export default function Home() {
 
 
   const navLinks = [
-    { href: '#servicios', label: tNav('services') },
-    { href: '#reservas',  label: tNav('bookings') },
+    { href: '#servicios',              label: tNav('services') },
+    { href: `/${locale}/servicios`,    label: tNav('pricing') },
+    { href: '#reservas',               label: tNav('bookings') },
     { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
-    { href: '#tarjetas',  label: tNav('giftCards') },
-    { href: '#contacto',  label: tNav('contact') },
+    { href: '#tarjetas',               label: tNav('giftCards') },
+    { href: '#contacto',               label: tNav('contact') },
   ];
 
   return (

@@ -1,6 +1,7 @@
 {
   "nav": {
     "services": "Serveis",
+    "pricing": "Preus",
     "bookings": "Reserves",
     "creations": "Les nostres creacions",
     "giftCards": "Targetes Regal",
@@ -100,6 +101,14 @@
     "instagram": "@mavicnailscenter",
     "hours": "L-V 9:00-20:30 | S 10:00-14:00",
     "rights": "Tots els drets reservats"
+  },
+  "serviciosPage": {
+    "tag": "Tarifes actualitzades",
+    "title": "Els nostres serveis & preus",
+    "subtitle": "Tots els preus inclouen IVA. Consulta disponibilitat a Booksy.",
+    "loading": "Carregant serveis...",
+    "empty": "Pròximament afegirem els nostres serveis i preus.",
+    "note": "Preus subjectes a canvis. Per a més informació contacta'ns per WhatsApp."
   },
   "creations": {
     "title": "Les nostres creacions",

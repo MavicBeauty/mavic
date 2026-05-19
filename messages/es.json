@@ -1,6 +1,7 @@
 {
   "nav": {
     "services": "Servicios",
+    "pricing": "Precios",
     "bookings": "Reservas",
     "creations": "Nuestras Creaciones",
     "giftCards": "Tarjetas Regalo",
@@ -100,6 +101,14 @@
     "instagram": "@mavicnailscenter",
     "hours": "L-V 9:00-20:30 | S 10:00-14:00",
     "rights": "Todos los derechos reservados"
+  },
+  "serviciosPage": {
+    "tag": "Tarifas actualizadas",
+    "title": "Nuestros Servicios & Precios",
+    "subtitle": "Todos los precios incluyen IVA. Consulta disponibilidad en Booksy.",
+    "loading": "Cargando servicios...",
+    "empty": "Próximamente añadiremos nuestros servicios y precios.",
+    "note": "Precios sujetos a cambios. Para más información contáctanos por WhatsApp."
   },
   "creations": {
     "title": "Nuestras Creaciones",
