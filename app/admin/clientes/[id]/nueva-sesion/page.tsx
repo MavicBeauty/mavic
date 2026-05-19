@@ -41,9 +41,9 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
       .eq('client_id', params.id)
       .order('session_date', { ascending: true })
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data }: { data: Array<{ form_data: Record<string, unknown> }> | null }) => {
         const seen: string[] = [];
-        (data || []).forEach((s: { form_data: Record<string, unknown> }) => {
+        (data || []).forEach((s) => {
           const fd = s.form_data;
           if (Array.isArray(fd.zones)) {
             (fd.zones as Zone[]).forEach(z => { if (z.name && !seen.includes(z.name)) seen.push(z.name); });
