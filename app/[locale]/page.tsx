@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
+import PromoPopup from '@/components/public/PromoPopup';
 
 interface Service {
   id: string;
@@ -66,6 +67,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-white font-sans">
+      <PromoPopup />
 
       {/* ── NAVIGATION ── */}
       <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-sm z-50 shadow-sm">

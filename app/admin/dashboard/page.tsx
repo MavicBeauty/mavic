@@ -25,10 +25,9 @@ export default function DashboardPage() {
   const sections = [
     { href: '/admin/clientes',       icon: '👥', title: 'Clientes',           desc: 'Ver, buscar y editar clientes. Gestionar consentimientos e historiales clínicos.' },
     { href: '/admin/servicios',      icon: '💅', title: 'Servicios & Precios', desc: 'Añadir, editar y eliminar servicios. Gestionar precios en español y catalán.' },
-    { href: '/admin/ofertas',        icon: '🎁', title: 'Ofertas Especiales',  desc: 'Crear y gestionar promociones. Establecer fechas de validez.' },
+    { href: '/admin/ofertas',        icon: '📢', title: 'Ventana Emergente',   desc: 'Configura el anuncio que aparece al entrar al sitio web.' },
     { href: '/admin/tarjetas-regalo',icon: '🎫', title: 'Tarjetas Regalo',     desc: 'Revisar solicitudes, añadir código Booksy y enviar a clientes.' },
     { href: '/admin/empleados',      icon: '📊', title: 'Control de Horarios', desc: 'Registro diario de horas trabajadas por empleado.' },
-    { href: '/es',                   icon: '🌐', title: 'Ver Sitio Web',       desc: 'Acceder al sitio web público de MAVIC Beauty & Nails.' },
   ];
 
   return (
