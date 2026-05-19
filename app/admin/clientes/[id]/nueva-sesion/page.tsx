@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 interface Zone { name: string; fot: string; power: string; }
 
@@ -23,6 +24,7 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
   const router = useRouter();
   const [sessionDate, setSessionDate] = useState(new Date().toISOString().split('T')[0]);
   const [zones, setZones] = useState<Zone[]>([emptyZone()]);
+  const [zonesReady, setZonesReady] = useState(false);
   const [observations, setObservations] = useState('');
   const [adverseReactions, setAdverseReactions] = useState<Record<string, boolean>>({
     sun_exposure: false, wax: false, accutane: false, herpes: false,
@@ -30,6 +32,30 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase
+      .from('clinical_sessions')
+      .select('form_data')
+      .eq('client_id', params.id)
+      .order('session_date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        const seen: string[] = [];
+        (data || []).forEach((s: { form_data: Record<string, unknown> }) => {
+          const fd = s.form_data;
+          if (Array.isArray(fd.zones)) {
+            (fd.zones as Zone[]).forEach(z => { if (z.name && !seen.includes(z.name)) seen.push(z.name); });
+          } else if (fd.zonas) {
+            const n = String(fd.zonas);
+            if (!seen.includes(n)) seen.push(n);
+          }
+        });
+        if (seen.length) setZones(seen.map(name => ({ name, fot: '', power: '' })));
+        setZonesReady(true);
+      });
+  }, [params.id]);
 
   function updateZone(idx: number, field: keyof Zone, value: string) {
     setZones(z => z.map((zone, i) => i === idx ? { ...zone, [field]: value } : zone));
@@ -102,7 +128,14 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
             {/* Zones */}
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-mavic-black">Zonas Tratadas</h2>
+                <h2 className="text-xl font-bold text-mavic-black">
+                  Zonas Tratadas
+                  {zonesReady && zones.some(z => z.name) && (
+                    <span className="ml-2 text-sm font-normal text-gray-500">
+                      (precargadas del historial)
+                    </span>
+                  )}
+                </h2>
                 {zones.length < 6 && (
                   <button type="button" onClick={addZone} disabled={loading}
                     className="text-sm bg-mavic-pink text-white px-3 py-1 rounded-lg hover:bg-mavic-pink/80 transition">

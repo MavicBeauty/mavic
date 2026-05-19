@@ -27,9 +27,9 @@ export interface ClientInfo {
 // 6 zone row y-baselines, 20pt spacing from first measured row y=455
 const ZONE_ROWS = [455, 435, 415, 395, 375, 355];
 
-// Session column x: measured SES.1 at x=206, each column 33pts wide
+// Session column x: measured SES.1 at x=206, each column 34pts wide
 function colX(sesNum: number): number {
-  return 206 + (sesNum - 1) * 33;
+  return 206 + (sesNum - 1) * 34;
 }
 
 // Adverse reaction checkbox y-baselines
