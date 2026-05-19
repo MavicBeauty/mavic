@@ -47,6 +47,10 @@ Thumbs.db
 
 # PDF form templates (stored in Supabase private bucket pdf-templates)
 /public/forms/
+*.pdf
+
+# Windows download metadata
+*:Zone.Identifier
 
 # Build artifacts
 tsconfig.tsbuildinfo
