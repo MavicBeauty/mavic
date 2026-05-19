@@ -19,10 +19,8 @@ interface Service {
 const emptyForm = {
   category: 'MANICURA',
   name_es: '',
-  name_ca: '',
   price: 0,
   price_note_es: '',
-  price_note_ca: '',
   is_active: true,
   sort_order: 1,
 };
@@ -69,9 +67,15 @@ export default function ServiciosPage() {
   };
 
   const handleEdit = (s: Service) => {
-    const { id, ...rest } = s;
-    setFormData(rest);
-    setEditingId(id);
+    setFormData({
+      category: s.category,
+      name_es: s.name_es,
+      price: s.price,
+      price_note_es: s.price_note_es,
+      is_active: s.is_active,
+      sort_order: s.sort_order,
+    });
+    setEditingId(s.id);
     setShowForm(true);
   };
 
@@ -139,24 +143,13 @@ export default function ServiciosPage() {
                     className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre en Español *</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre del servicio *</label>
                   <input type="text" name="name_es" value={formData.name_es} onChange={handleChange} required
                     className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink" />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nombre en Catalán *</label>
-                  <input type="text" name="name_ca" value={formData.name_ca} onChange={handleChange} required
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nota Precio ES (ej: "desde")</label>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nota Precio (ej: "desde")</label>
                   <input type="text" name="price_note_es" value={formData.price_note_es} onChange={handleChange}
-                    placeholder="Opcional"
-                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink" />
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Nota Precio CA (ej: "des de")</label>
-                  <input type="text" name="price_note_ca" value={formData.price_note_ca} onChange={handleChange}
                     placeholder="Opcional"
                     className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink" />
                 </div>
@@ -197,7 +190,7 @@ export default function ServiciosPage() {
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Servicio (ES / CA)</th>
+                        <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Servicio</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Precio</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Notas</th>
                         <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">Estado</th>
@@ -209,7 +202,6 @@ export default function ServiciosPage() {
                         <tr key={service.id} className="border-b border-gray-200 hover:bg-gray-50">
                           <td className="px-6 py-4">
                             <div className="text-sm font-medium text-mavic-black">{service.name_es}</div>
-                            <div className="text-xs text-gray-500 mt-1">{service.name_ca}</div>
                           </td>
                           <td className="px-6 py-4 text-sm font-semibold text-mavic-pink">
                             €{Number(service.price).toFixed(2)}

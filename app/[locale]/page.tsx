@@ -59,8 +59,7 @@ export default function Home() {
 
   const navLinks = [
     { href: '#servicios',              label: tNav('services') },
-    { href: `/${locale}/servicios`,    label: tNav('pricing') },
-    { href: '#reservas',               label: tNav('bookings') },
+    { href: 'https://mavicbeautynails.booksy.com/h', label: tNav('bookings'), external: true },
     { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
     { href: '#tarjetas',               label: tNav('giftCards') },
     { href: '#contacto',               label: tNav('contact') },
@@ -82,6 +81,7 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((l) => (
               <a key={l.href} href={l.href}
+                {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink transition">
                 {l.label}
               </a>
@@ -106,6 +106,7 @@ export default function Home() {
           <div className="md:hidden bg-white border-t border-gray-100 px-4 pb-4 flex flex-col gap-4 shadow-lg">
             {navLinks.map((l) => (
               <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
+                {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink py-1 transition">
                 {l.label}
               </a>
@@ -149,10 +150,10 @@ export default function Home() {
             {tHero('promo')}
           </p>
 
-          <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
+          <Link href={`/${locale}/servicios`}
             className="inline-block bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-3 px-10 rounded-full text-lg transition shadow-2xl hover:shadow-mavic-pink/40 hover:-translate-y-0.5 transform">
             {tHero('servicesBtn')}
-          </a>
+          </Link>
         </div>
 
         {/* Scroll cue */}
