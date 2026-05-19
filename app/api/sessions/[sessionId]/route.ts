@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { regeneratePDF } from '../route';
+import { regeneratePDF } from '@/lib/historial-pdf';
 
 function getSupabase() {
   return createClient(
