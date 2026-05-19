@@ -49,13 +49,15 @@ export async function POST(req: NextRequest) {
     const d = new Date(session_date);
     const sessionDate = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getFullYear()).slice(-2)}`;
 
-    // ── Header section ──
-    // Row 1: NOMBRE Y APELLIDOS
-    page.drawText(fullName,       { x: 120, y: 762, size: fontSize, font, color: black });
-    // Row 2: DNI  |  AÑO NACIMIENTO  |  TELÉFONO
-    if (client.dni)    page.drawText(client.dni,    { x: 55,  y: 737, size: fontSize, font, color: black });
-    if (birthYear)     page.drawText(birthYear,     { x: 255, y: 737, size: fontSize, font, color: black });
-    if (client.phone)  page.drawText(client.phone,  { x: 415, y: 737, size: fontSize, font, color: black });
+    // ── Header — positions from AcroForm field rects ──
+    // Nombre field:  rect x=130→380  y=755→770  → draw at x=132, y=758
+    // Edad field:    rect x=450→530  y=755→770  → draw at x=452, y=758  (birth year)
+    // Telefono field:rect x=130→380  y=735→750  → draw at x=132, y=738
+    // Correo field:  rect x=130→380  y=715→730  → draw at x=132, y=718  (reused for DNI)
+    page.drawText(fullName,          { x: 132, y: 758, size: fontSize, font, color: black });
+    if (birthYear)     page.drawText(birthYear,    { x: 452, y: 758, size: fontSize, font, color: black });
+    if (client.phone)  page.drawText(client.phone, { x: 132, y: 738, size: fontSize, font, color: black });
+    if (client.dni)    page.drawText(client.dni,   { x: 132, y: 718, size: fontSize, font, color: black });
 
     // ── Treatment grid ──
     // Columns: ZONAS (wide, left) | FOT | SES.1–SES.9 (each ≈33 pts wide, starting x≈248)
@@ -88,11 +90,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── Observations — long blue line near bottom of form ──
+    // ── Observations — long blue line just above the signature (FirmaPaciente y=90–115) ──
     if (observations) {
       const words = observations.split(' ');
       let line = '';
-      let obsY = 128;
+      let obsY = 145;
       for (const word of words) {
         if ((line + word).length > 90) {
           page.drawText(line.trim(), { x: 50, y: obsY, size: 8, font, color: black });
