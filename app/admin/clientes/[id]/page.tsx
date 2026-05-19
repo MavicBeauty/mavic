@@ -12,6 +12,7 @@ interface Session {
   form_data: {
     zonas?: string;
     power?: string;
+    fot?: string;
     sesion_number?: string;
     observations?: string;
     adverse_reactions?: Record<string, boolean>;
