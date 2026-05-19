@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,9 +14,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
     }
 
-    // Load the original PDF template
-    const pdfPath = path.join(process.cwd(), 'public', 'forms', 'CONSENTIMLASER_form.pdf');
-    const pdfBytes = fs.readFileSync(pdfPath);
+    // Load the original PDF template from private Supabase bucket
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data: templateBlob, error: templateError } = await supabase.storage
+      .from('pdf-templates')
+      .download('CONSENTIMLASER_form.pdf');
+    if (templateError || !templateBlob) {
+      return NextResponse.json({ error: 'No se pudo cargar la plantilla del consentimiento' }, { status: 500 });
+    }
+    const pdfBytes = await templateBlob.arrayBuffer();
     const pdfDoc = await PDFDocument.load(pdfBytes, { throwOnInvalidObject: false });
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const page = pdfDoc.getPages()[0];
@@ -49,12 +56,6 @@ export async function POST(req: NextRequest) {
     page.drawImage(sigImage, { x: 390, y: 10, width: 200, height: 50 });
 
     const docBuffer = await pdfDoc.save();
-
-    // Save to Supabase
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
 
     // Use existing client or insert new one
     let clientId: string;

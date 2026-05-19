@@ -1,7 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib';
 import { createClient } from '@supabase/supabase-js';
-import fs from 'fs';
-import path from 'path';
 
 export interface Zone {
   name: string;
@@ -113,8 +111,15 @@ export async function generateHistorialPDF(
   client: ClientInfo,
   sessions: SessionData[],
 ): Promise<Uint8Array> {
-  const pdfPath = path.join(process.cwd(), 'public', 'forms', 'HISTORIALASER_form.pdf');
-  const pdfBytes = fs.readFileSync(pdfPath);
+  const supabaseTemplate = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const { data: templateBlob, error: templateError } = await supabaseTemplate.storage
+    .from('pdf-templates')
+    .download('HISTORIALASER_form.pdf');
+  if (templateError || !templateBlob) throw new Error('No se pudo cargar la plantilla del historial');
+  const pdfBytes = await templateBlob.arrayBuffer();
   const pdfDoc = await PDFDocument.load(pdfBytes, { throwOnInvalidObject: false });
   const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const page = pdfDoc.getPages()[0];
