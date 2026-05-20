@@ -123,7 +123,7 @@ export default function Home() {
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
         {/* Background image */}
         <div className="absolute inset-0">
-          <Image src="/salon/local.jpeg" alt="Mavic Beauty & Nails" fill className="object-cover opacity-[0.15]" priority />
+          <Image src="/salon/local.jpeg" alt="Mavic Beauty & Nails" fill className="object-cover opacity-[0.50]" priority />
           <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/70" />
         </div>
 
