@@ -17,12 +17,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
 
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) {
         router.replace('/admin/login');
-      } else {
-        setReady(true);
+        return;
       }
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', session.user.id)
+        .single();
+      if (!profile || !['owner', 'employee'].includes(profile.role as string)) {
+        await supabase.auth.signOut();
+        router.replace('/admin/login');
+        return;
+      }
+      setReady(true);
     });
   }, [pathname, router]);
 
