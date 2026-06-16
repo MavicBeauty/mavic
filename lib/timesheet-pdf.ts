@@ -195,39 +195,43 @@ export async function generateTimesheetPDF({
 
   rect(L, CH_TOP - CH_H, R - L, CH_H, lgray);
 
-  // Section labels (row 1)
-  const H1Y = CH_TOP - 10;
-  // HORAS ORDINARIAS spans ent1 → tot
-  const ordSpanX = COLS.ent1.x;
-  const ordSpanW = COLS.tot.x + COLS.tot.w - COLS.ent1.x;
-  const ordLabel = 'HORAS ORDINARIAS';
-  lText(ordLabel, bold, 6, ordSpanX + (ordSpanW - bold.widthOfTextAtSize(ordLabel, 6)) / 2, H1Y);
+  // Midline only crosses the grouped sections — not DIA, AUSENCIA or FIRMA
+  const H_MID_Y   = CH_TOP - 17;
+  const ORD_RIGHT  = COLS.tot.x + COLS.tot.w;          // right edge of HORAS ORDINARIAS group
+  const COMP_RIGHT = COLS.sal_comp.x + COLS.sal_comp.w; // right edge of COMP/EXTRA group
+  hLine(H_MID_Y, COLS.ent1.x, COMP_RIGHT, 0.4);
 
-  // COMP/EXTRA spans ent_comp → sal_comp
-  const compSpanX = COLS.ent_comp.x;
-  const compSpanW = COLS.sal_comp.x + COLS.sal_comp.w - COLS.ent_comp.x;
-  const compLabel = 'COMP / EXTRA';
-  lText(compLabel, bold, 5.5, compSpanX + (compSpanW - bold.widthOfTextAtSize(compLabel, 5.5)) / 2, H1Y);
+  // Y positions
+  const SEC_Y      = CH_TOP - 11;   // section label baseline (top half of grouped cells)
+  const COL_Y      = CH_TOP - 26;   // column label baseline (bottom half of grouped cells)
+  const FULL_CTR_Y = CH_TOP - 20;   // baseline for full-height single cells
 
-  // Midline separating section labels from column labels
-  const H_MID_Y = CH_TOP - 17;
-  hLine(H_MID_Y, L, R, 0.4);
+  // Full-height single-cell labels: DIA, AUSENCIA, FIRMA
+  const hFull = (text: string, col: Col, sz: number) =>
+    lText(text, bold, sz, col.x + (col.w - bold.widthOfTextAtSize(text, sz)) / 2, FULL_CTR_Y);
 
-  // Column labels (row 2)
-  const H2Y = CH_TOP - 25;
-  const h2 = (text: string, col: Col) =>
-    lText(text, bold, 5.5, col.x + (col.w - bold.widthOfTextAtSize(text, 5.5)) / 2, H2Y);
+  hFull('DIA',      COLS.dia,      7.5);
+  hFull('AUSENCIA', COLS.ausencia, 7);
+  hFull('FIRMA',    COLS.firma,    7.5);
 
-  h2('DIA',      COLS.dia);
-  h2('ENTRADA',  COLS.ent1);
-  h2('SALIDA',   COLS.sal1);
-  h2('ENTRADA',  COLS.ent2);
-  h2('SALIDA',   COLS.sal2);
-  h2('TOTAL',    COLS.tot);
-  h2('ENTRADA',  COLS.ent_comp);
-  h2('SALIDA',   COLS.sal_comp);
-  h2('AUSENCIA', COLS.ausencia);
-  h2('FIRMA',    COLS.firma);
+  // Section labels in top half of grouped cells
+  const hSec = (text: string, x1: number, x2: number) =>
+    lText(text, bold, 6, x1 + ((x2 - x1) - bold.widthOfTextAtSize(text, 6)) / 2, SEC_Y);
+
+  hSec('HORAS ORDINARIAS', COLS.ent1.x, ORD_RIGHT);
+  hSec('COMP / EXTRA',     COLS.ent_comp.x, COMP_RIGHT);
+
+  // Column labels in bottom half of grouped cells
+  const hCol = (text: string, col: Col) =>
+    lText(text, bold, 5.5, col.x + (col.w - bold.widthOfTextAtSize(text, 5.5)) / 2, COL_Y);
+
+  hCol('ENTRADA', COLS.ent1);
+  hCol('SALIDA',  COLS.sal1);
+  hCol('ENTRADA', COLS.ent2);
+  hCol('SALIDA',  COLS.sal2);
+  hCol('TOTAL',   COLS.tot);
+  hCol('ENTRADA', COLS.ent_comp);
+  hCol('SALIDA',  COLS.sal_comp);
 
   // ── Grid: horizontal lines ────────────────────────────────────────────────
 
@@ -237,15 +241,24 @@ export async function generateTimesheetPDF({
     hLine(DATA_TOP - i * ROW_H);
   }
 
-  // Grid: vertical lines (span full grid including headers and total row)
+  // Vertical lines
   const VL_TOP = CH_TOP;
   const VL_BOT = TOT_BOT;
-  Object.values(COLS).forEach(col => {
-    // Thicker line between HORAS ORDINARIAS and COMP/EXTRA sections
-    const thick = col.x === COLS.ent_comp.x ? 1.2 : 0.5;
-    vLine(col.x, VL_BOT, VL_TOP, thick);
-  });
-  vLine(R, VL_BOT, VL_TOP);
+
+  // Group-boundary vLines — full height through header and all data rows
+  const groupBounds: [number, number][] = [
+    [L,                                        0.5],
+    [COLS.ent1.x,                              0.5],   // DIA right / HORAS group left
+    [COLS.ent_comp.x,                          1.2],   // HORAS group right / COMP group left (thick)
+    [COLS.ausencia.x,                          0.5],   // COMP group right / AUSENCIA left
+    [COLS.ausencia.x + COLS.ausencia.w,        0.5],   // AUSENCIA right / FIRMA left
+    [R,                                        0.5],   // right edge
+  ];
+  groupBounds.forEach(([x, thick]) => vLine(x, VL_BOT, VL_TOP, thick));
+
+  // Sub-column vLines — data rows + bottom half of header only (stop at H_MID_Y)
+  [COLS.sal1.x, COLS.ent2.x, COLS.sal2.x, COLS.tot.x, COLS.sal_comp.x]
+    .forEach(x => vLine(x, VL_BOT, H_MID_Y));
 
   // ── Data rows ─────────────────────────────────────────────────────────────
 
@@ -275,7 +288,7 @@ export async function generateTimesheetPDF({
         if (entry.entry2) cText(entry.entry2, font, 6.5, COLS.ent2,  textY);
         if (entry.exit2)  cText(entry.exit2,  font, 6.5, COLS.sal2,  textY);
         const hrs = calcDailyHours(entry);
-        if (hrs > 0) cText(hrs.toFixed(1) + 'h', bold, 7, COLS.tot, textY);
+        if (hrs > 0) cText(hrs.toFixed(1) + 'h', bold, 8.5, COLS.tot, textY);
       }
     }
   }
