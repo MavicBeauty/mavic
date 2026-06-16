@@ -16,27 +16,29 @@ export default function SetPasswordPage() {
   useEffect(() => {
     const supabase = createClient();
 
-    // Auth state change fires when the token in the URL hash is processed
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'PASSWORD_RECOVERY') {
-        setReady(true);
-      }
-    });
+    // Explicitly extract tokens from the URL hash so an existing admin session
+    // in the singleton client cannot interfere with the invite/recovery flow.
+    const hash = window.location.hash.substring(1);
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get('access_token');
+    const refreshToken = params.get('refresh_token');
+    const type = params.get('type');
 
-    // Fallback: if session already exists (e.g. page was refreshed)
+    if (accessToken && refreshToken && (type === 'invite' || type === 'recovery')) {
+      supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ data, error }) => {
+          if (data.session && !error) setReady(true);
+          else setExpired(true);
+        });
+      return;
+    }
+
+    // No token in URL — either a page refresh after already being signed in,
+    // or an invalid/expired link.
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) setReady(true);
+      else setTimeout(() => setExpired(true), 1500);
     });
-
-    // If no token fires within 5 seconds, assume link is expired
-    const timeout = setTimeout(() => {
-      setReady(r => { if (!r) setExpired(true); return r; });
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSubmit = async (e: React.FormEvent) => {

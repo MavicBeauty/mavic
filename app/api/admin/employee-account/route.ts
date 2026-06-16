@@ -58,13 +58,15 @@ export async function POST(req: NextRequest) {
   const { error: profileErr } = await admin.from('profiles').insert({
     id: invite.user.id,
     name: (emp as { display_name: string }).display_name,
-    email,
     role: 'portal',
     employee_labor_info_id: employeeId,
     timesheet_permission: 'read',
   });
 
   if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
+
+  // Store email separately — non-fatal if column doesn't exist yet
+  await admin.from('profiles').update({ email }).eq('id', invite.user.id);
 
   return NextResponse.json({ ok: true, userId: invite.user.id });
 }
