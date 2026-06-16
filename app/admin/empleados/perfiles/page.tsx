@@ -127,6 +127,7 @@ export default function EmpleadosPerfilesPage() {
   const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
   const [portalLoading, setPortalLoading] = useState<Record<string, boolean>>({});
   const [portalMsg, setPortalMsg] = useState<Record<string, string>>({});
+  const [credEdit, setCredEdit] = useState<Record<string, { field: 'email' | 'password'; val: string; val2: string } | null>>({});
 
   const supabase = createClient();
 
@@ -198,6 +199,47 @@ export default function EmpleadosPerfilesPage() {
       setPortalAccounts(pa => ({ ...pa, [employeeId]: { ...acc, timesheet_permission: newPerm } }));
     }
     setPortalLoading(l => ({ ...l, [employeeId]: false }));
+  };
+
+  const handleCredChange = async (employeeId: string) => {
+    const acc = portalAccounts[employeeId];
+    const edit = credEdit[employeeId];
+    if (!acc || !edit) return;
+
+    if (edit.field === 'password' && edit.val !== edit.val2) {
+      setPortalMsg(m => ({ ...m, [employeeId]: 'Error: las contraseñas no coinciden' }));
+      setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
+      return;
+    }
+    if (edit.field === 'password' && edit.val.length < 8) {
+      setPortalMsg(m => ({ ...m, [employeeId]: 'Error: mínimo 8 caracteres' }));
+      setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
+      return;
+    }
+
+    setPortalLoading(l => ({ ...l, [employeeId]: true }));
+    const { data: { session } } = await supabase.auth.getSession();
+    const body = edit.field === 'email'
+      ? { userId: acc.id, email: edit.val }
+      : { userId: acc.id, password: edit.val };
+
+    const res = await fetch('/api/admin/employee-account', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+      body: JSON.stringify(body),
+    });
+    const json = await res.json();
+    if (json.error) {
+      setPortalMsg(m => ({ ...m, [employeeId]: `Error: ${json.error}` }));
+    } else {
+      if (edit.field === 'email') {
+        setPortalAccounts(pa => ({ ...pa, [employeeId]: { ...acc, email: edit.val } }));
+      }
+      setPortalMsg(m => ({ ...m, [employeeId]: edit.field === 'email' ? '✓ Email actualizado' : '✓ Contraseña actualizada' }));
+      setCredEdit(c => ({ ...c, [employeeId]: null }));
+    }
+    setPortalLoading(l => ({ ...l, [employeeId]: false }));
+    setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
   };
 
   const handleCreate = async (form: typeof emptyForm) => {
@@ -344,34 +386,102 @@ export default function EmpleadosPerfilesPage() {
                         Cuenta portal
                       </h3>
                       {portalAccounts[emp.id] ? (
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-sm text-gray-700 font-medium">
-                            {portalAccounts[emp.id].email}
-                          </span>
-                          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                            portalAccounts[emp.id].timesheet_permission === 'edit'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-600'
-                          }`}>
-                            {portalAccounts[emp.id].timesheet_permission === 'edit'
-                              ? 'Lectura + Edición'
-                              : 'Solo lectura'}
-                          </span>
-                          <button
-                            onClick={() => handleTogglePermission(emp.id)}
-                            disabled={portalLoading[emp.id]}
-                            className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
-                          >
-                            {portalLoading[emp.id]
-                              ? 'Actualizando...'
-                              : portalAccounts[emp.id].timesheet_permission === 'edit'
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span className="text-sm text-gray-700 font-medium">
+                              {portalAccounts[emp.id].email}
+                            </span>
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                              portalAccounts[emp.id].timesheet_permission === 'edit'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              {portalAccounts[emp.id].timesheet_permission === 'edit'
+                                ? 'Lectura + Edición'
+                                : 'Solo lectura'}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap gap-2 items-center">
+                            <button
+                              onClick={() => handleTogglePermission(emp.id)}
+                              disabled={portalLoading[emp.id]}
+                              className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
+                            >
+                              {portalAccounts[emp.id].timesheet_permission === 'edit'
                                 ? 'Cambiar a solo lectura'
                                 : 'Dar permiso de edición'}
-                          </button>
-                          {portalMsg[emp.id] && (
-                            <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-                              {portalMsg[emp.id]}
-                            </span>
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'email' ? null : { field: 'email', val: portalAccounts[emp.id].email || '', val2: '' } }))}
+                              disabled={portalLoading[emp.id]}
+                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
+                            >
+                              Cambiar email
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'password' ? null : { field: 'password', val: '', val2: '' } }))}
+                              disabled={portalLoading[emp.id]}
+                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
+                            >
+                              Cambiar contraseña
+                            </button>
+                            {portalMsg[emp.id] && (
+                              <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                                {portalMsg[emp.id]}
+                              </span>
+                            )}
+                          </div>
+                          {credEdit[emp.id] && (
+                            <div className="flex flex-wrap gap-2 items-end pt-1">
+                              {credEdit[emp.id]!.field === 'email' ? (
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Nuevo email</label>
+                                  <input
+                                    type="email"
+                                    value={credEdit[emp.id]!.val}
+                                    onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val: e.target.value } }))}
+                                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-64"
+                                  />
+                                </div>
+                              ) : (
+                                <>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Nueva contraseña</label>
+                                    <input
+                                      type="password"
+                                      value={credEdit[emp.id]!.val}
+                                      onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val: e.target.value } }))}
+                                      placeholder="Mín. 8 caracteres"
+                                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Confirmar</label>
+                                    <input
+                                      type="password"
+                                      value={credEdit[emp.id]!.val2}
+                                      onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val2: e.target.value } }))}
+                                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
+                                    />
+                                  </div>
+                                </>
+                              )}
+                              <button
+                                onClick={() => handleCredChange(emp.id)}
+                                disabled={portalLoading[emp.id] || !credEdit[emp.id]!.val}
+                                className="px-4 py-1.5 bg-mavic-pink text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-mavic-pink/90 transition"
+                              >
+                                {portalLoading[emp.id] ? 'Guardando...' : 'Guardar'}
+                              </button>
+                              <button
+                                onClick={() => setCredEdit(c => ({ ...c, [emp.id]: null }))}
+                                className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 font-semibold transition"
+                              >
+                                Cancelar
+                              </button>
+                            </div>
                           )}
                         </div>
                       ) : (
