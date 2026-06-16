@@ -16,7 +16,7 @@ interface Client {
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [searchType, setSearchType] = useState<'name' | 'phone'>('name');
+  const [searchType, setSearchType] = useState<'name' | 'phone' | 'dni' | null>(null);
   const [loading, setLoading] = useState(true);
   const [filteredClients, setFilteredClients] = useState<Client[]>([]);
 
@@ -40,13 +40,17 @@ export default function ClientsPage() {
       setFilteredClients(clients);
       return;
     }
+    const term = searchTerm.toLowerCase();
     const filtered = clients.filter((client) => {
-      if (searchType === 'name') {
-        const fullName = `${client.name} ${client.apellidos || ''}`.toLowerCase();
-        return fullName.includes(searchTerm.toLowerCase());
-      } else {
-        return client.phone.includes(searchTerm);
-      }
+      const fullName = `${client.name} ${client.apellidos || ''}`.toLowerCase();
+      if (searchType === 'name') return fullName.includes(term);
+      if (searchType === 'phone') return client.phone.includes(searchTerm);
+      if (searchType === 'dni') return (client.dni || '').toLowerCase().includes(term);
+      return (
+        fullName.includes(term) ||
+        client.phone.includes(searchTerm) ||
+        (client.dni || '').toLowerCase().includes(term)
+      );
     });
     setFilteredClients(filtered);
   }, [searchTerm, searchType, clients]);
@@ -71,35 +75,29 @@ export default function ClientsPage() {
       <main className="max-w-7xl mx-auto px-4 py-12">
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
           <h2 className="text-xl font-bold text-mavic-black mb-4">Buscar Cliente</h2>
-          <div className="flex gap-4 flex-col md:flex-row">
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Buscar por:</label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setSearchType('name')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${searchType === 'name' ? 'bg-mavic-pink text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                >
-                  Nombre
-                </button>
-                <button
-                  onClick={() => setSearchType('phone')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${searchType === 'phone' ? 'bg-mavic-pink text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
-                >
-                  Teléfono
-                </button>
-              </div>
-            </div>
-            <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                {searchType === 'name' ? 'Nombre' : 'Teléfono'}
-              </label>
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={searchType === 'name' ? 'Ej: María García' : 'Ej: 612345678'}
-                className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-              />
+          <div className="flex flex-col gap-4">
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Busca por nombre, DNI o teléfono…"
+              className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+            />
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500">Filtrar por:</span>
+              {(['name', 'phone', 'dni'] as const).map((type) => {
+                const labels = { name: 'Nombre', phone: 'Teléfono', dni: 'DNI' };
+                const active = searchType === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setSearchType(active ? null : type)}
+                    className={`px-4 py-1.5 rounded-lg text-sm font-medium transition ${active ? 'bg-mavic-pink text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                  >
+                    {labels[type]}
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
