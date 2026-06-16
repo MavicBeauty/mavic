@@ -65,6 +65,10 @@ export interface TimesheetPDFParams {
   days: DayEntry[];
   totalHours: number;
   observations?: string;
+  employeeSignature?: Uint8Array;
+  employerSignature?: Uint8Array;
+  employeeSignedAt?: string;
+  employerSignedAt?: string;
 }
 
 function calcDailyHours(d: DayEntry): number {
@@ -82,6 +86,7 @@ function calcDailyHours(d: DayEntry): number {
 
 export async function generateTimesheetPDF({
   employee, month, year, days, totalHours, observations = '',
+  employeeSignature, employerSignature, employeeSignedAt, employerSignedAt,
 }: TimesheetPDFParams): Promise<Uint8Array> {
   const doc = await PDFDocument.create();
   const page = doc.addPage([W, 841.89]);
@@ -131,13 +136,15 @@ export async function generateTimesheetPDF({
   const CH_TOP     = PER_BOT;      // column header section top
   const CH_H       = 32;           // height of column headers
   const DATA_TOP   = CH_TOP - CH_H; // top edge of day-1 row
-  const ROW_H      = 15.8;
-  const GRID_BOT   = DATA_TOP - 31 * ROW_H;  // bottom of day-31 row
-  const TOT_BOT    = GRID_BOT - ROW_H;        // bottom of total row
+  const ROW_H      = 15.2;
+  const GRID_BOT   = DATA_TOP - 31 * ROW_H;
+  const TOT_BOT    = GRID_BOT - ROW_H;
   const OBS_TOP    = TOT_BOT - 6;
-  const OBS_BOT    = OBS_TOP - 30;
-  const SIG_TOP    = OBS_BOT - 6;
-  const SIG_BOT    = SIG_TOP - 55;
+  const OBS_BOT    = OBS_TOP - 20;
+  const LEGAL_TOP  = OBS_BOT - 4;
+  const LEGAL_BOT  = LEGAL_TOP - 22;
+  const SIG_TOP    = LEGAL_BOT - 4;
+  const SIG_BOT    = SIG_TOP - 70;
 
   // ── Title ─────────────────────────────────────────────────────────────────
 
@@ -303,27 +310,85 @@ export async function generateTimesheetPDF({
 
   rect(L, OBS_BOT, R - L, OBS_TOP - OBS_BOT);
   lText('Observaciones:', bold, 7, L + 3, OBS_TOP - 11);
-  if (observations) lText(observations, font, 7, L + 3, OBS_TOP - 22);
+  if (observations) lText(observations, font, 7, L + 3, OBS_TOP - 16);
+
+  // ── Legal declaration ─────────────────────────────────────────────────────
+
+  rect(L, LEGAL_BOT, R - L, LEGAL_TOP - LEGAL_BOT);
+  const legalLines = [
+    'El presente registro ha sido elaborado y firmado de conformidad con los art. 12.4.c, 34.9 y 35.5 del Estatuto de los',
+    'Trabajadores. Las firmas digitales de ambas partes acreditan la veracidad de los datos y tienen plena validez juridica.',
+  ];
+  legalLines.forEach((line, i) =>
+    lText(line, font, 6, L + 3, LEGAL_TOP - 8 - i * 9, gray)
+  );
 
   // ── Signature block ───────────────────────────────────────────────────────
 
+  const SIG_W    = R - L;
+  const SIG_COL  = SIG_W / 3;
+  const SIG_MID1 = L + SIG_COL;
+  const SIG_MID2 = L + 2 * SIG_COL;
+
   rect(L, SIG_BOT, R - L, SIG_TOP - SIG_BOT);
-  const SIG_W   = R - L;
-  const SIG_MID1 = L + SIG_W / 3;
-  const SIG_MID2 = L + 2 * SIG_W / 3;
   vLine(SIG_MID1, SIG_BOT, SIG_TOP);
   vLine(SIG_MID2, SIG_BOT, SIG_TOP);
 
-  const sigTY = SIG_TOP - 11;
-  lText('POR LA EMPRESA',      bold, 8,  L + 3,       sigTY);
-  lText('Firma y sello',       font, 7,  L + 3,       sigTY - 14);
+  const sigTY = SIG_TOP - 8;
+  lText('POR LA EMPRESA',    bold, 7, L + 3,        sigTY);
+  lText('POR EL TRABAJADOR', bold, 7, SIG_MID2 + 3, sigTY);
 
+  // Center: period end date
   const fechaStr = `Fecha: ${String(daysInMonth).padStart(2,'0')}/${String(month).padStart(2,'0')}/${year}`;
-  const fechaW   = font.widthOfTextAtSize(fechaStr, 8);
-  lText(fechaStr, font, 8, SIG_MID1 + ((SIG_MID2 - SIG_MID1) - fechaW) / 2, sigTY);
+  lText(fechaStr, font, 7, SIG_MID1 + (SIG_COL - font.widthOfTextAtSize(fechaStr, 7)) / 2, sigTY);
 
-  lText('POR EL TRABAJADOR',   bold, 8,  SIG_MID2 + 3, sigTY);
-  lText('Firma',               font, 7,  SIG_MID2 + 3, sigTY - 14);
+  // Helper: format ISO timestamp → DD/MM/YYYY HH:MM
+  const fmtTs = (iso: string) => {
+    const d = new Date(iso);
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mi = String(d.getMinutes()).padStart(2, '0');
+    return `${dd}/${mm}/${d.getFullYear()} ${hh}:${mi}`;
+  };
+
+  // Employer signature image + timestamp
+  if (employerSignature) {
+    try {
+      const img   = await doc.embedPng(employerSignature);
+      const maxW  = SIG_COL - 12;
+      const scale = Math.min(maxW / img.width, 38 / img.height);
+      const iW    = img.width * scale;
+      const iH    = img.height * scale;
+      page.drawImage(img, {
+        x: L + (SIG_COL - iW) / 2,
+        y: SIG_BOT + 18,
+        width: iW, height: iH,
+      });
+    } catch { /* skip if corrupt */ }
+  }
+  if (employerSignedAt) {
+    lText(fmtTs(employerSignedAt), font, 5.5, L + 3, SIG_BOT + 10, gray);
+  }
+
+  // Employee signature image + timestamp
+  if (employeeSignature) {
+    try {
+      const img   = await doc.embedPng(employeeSignature);
+      const maxW  = SIG_COL - 12;
+      const scale = Math.min(maxW / img.width, 38 / img.height);
+      const iW    = img.width * scale;
+      const iH    = img.height * scale;
+      page.drawImage(img, {
+        x: SIG_MID2 + (SIG_COL - iW) / 2,
+        y: SIG_BOT + 18,
+        width: iW, height: iH,
+      });
+    } catch { /* skip if corrupt */ }
+  }
+  if (employeeSignedAt) {
+    lText(fmtTs(employeeSignedAt), font, 5.5, SIG_MID2 + 3, SIG_BOT + 10, gray);
+  }
 
   return await doc.save();
 }

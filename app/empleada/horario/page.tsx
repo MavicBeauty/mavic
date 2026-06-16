@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import SignaturePad from '@/components/SignaturePad';
 
 interface DayEntry {
   day: number;
@@ -16,6 +17,13 @@ interface EmployeeProfile {
   name: string;
   timesheet_permission: 'read' | 'edit';
   employee_labor_info_id: string;
+}
+
+interface SigState {
+  employee_signature_path: string | null;
+  employer_signature_path: string | null;
+  employee_signed_at: string | null;
+  employer_signed_at: string | null;
 }
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -41,6 +49,11 @@ function calcDailyHours(d: DayEntry): number {
   return Math.max(0, h);
 }
 
+function fmtTs(iso: string) {
+  const d = new Date(iso);
+  return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
 export default function EmpleadaHorarioPage() {
   const router = useRouter();
   const [profile, setProfile] = useState<EmployeeProfile | null>(null);
@@ -52,6 +65,10 @@ export default function EmpleadaHorarioPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [loading, setLoading] = useState(true);
+  const [sigState, setSigState] = useState<SigState>({ employee_signature_path: null, employer_signature_path: null, employee_signed_at: null, employer_signed_at: null });
+  const [showSignPad, setShowSignPad] = useState(false);
+  const [sigWorking, setSigWorking] = useState(false);
+  const [sigMsg, setSigMsg] = useState('');
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -59,6 +76,11 @@ export default function EmpleadaHorarioPage() {
   const totalHours = days
     .filter(d => d.day <= daysInMonth)
     .reduce((s, d) => s + calcDailyHours(d), 0);
+
+  const isSigned = !!sigState.employee_signature_path;
+  const employerSigned = !!sigState.employer_signature_path;
+  // Lock editing once the employee has signed
+  const canEdit = profile?.timesheet_permission === 'edit' && !isSigned;
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -84,12 +106,26 @@ export default function EmpleadaHorarioPage() {
     if (!displayName) return;
     const { data } = await supabase
       .from('timesheets')
-      .select('day_entries')
+      .select('day_entries, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
       .eq('employee_name', displayName)
       .eq('period_month', month)
       .eq('period_year', year)
       .single();
-    setDays((data as { day_entries: DayEntry[] } | null)?.day_entries ?? emptyDays());
+    const row = data as {
+      day_entries: DayEntry[];
+      employee_signature_path: string | null;
+      employer_signature_path: string | null;
+      employee_signed_at: string | null;
+      employer_signed_at: string | null;
+    } | null;
+    setDays(row?.day_entries ?? emptyDays());
+    setSigState({
+      employee_signature_path: row?.employee_signature_path ?? null,
+      employer_signature_path: row?.employer_signature_path ?? null,
+      employee_signed_at: row?.employee_signed_at ?? null,
+      employer_signed_at: row?.employer_signed_at ?? null,
+    });
+    setEditMode(false);
   }, [displayName, month, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
@@ -114,6 +150,84 @@ export default function EmpleadaHorarioPage() {
     setTimeout(() => setSaveMsg(''), 3000);
   };
 
+  const handleSign = async (dataUrl: string) => {
+    if (!profile || !displayName) return;
+    setShowSignPad(false);
+    setSigWorking(true);
+    setSigMsg('');
+
+    // Ensure timesheet row exists before signing
+    await supabase.from('timesheets').upsert({
+      employee_name: displayName,
+      period_month: month,
+      period_year: year,
+      day_entries: days,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'employee_name,period_month,period_year' });
+
+    // Convert dataUrl to Uint8Array
+    const base64 = dataUrl.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const path = `employee/${profile.employee_labor_info_id}/${year}-${String(month).padStart(2,'0')}.png`;
+    const { error: upErr } = await supabase.storage
+      .from('signatures')
+      .upload(path, bytes, { contentType: 'image/png', upsert: true });
+
+    if (upErr) {
+      setSigMsg('Error al guardar la firma. Inténtalo de nuevo.');
+      setSigWorking(false);
+      return;
+    }
+
+    const signedAt = new Date().toISOString();
+    const { error: dbErr } = await supabase.from('timesheets').update({
+      employee_signature_path: path,
+      employee_signed_at: signedAt,
+    }).eq('employee_name', displayName)
+      .eq('period_month', month)
+      .eq('period_year', year);
+
+    if (dbErr) {
+      setSigMsg('Error al registrar la firma. Inténtalo de nuevo.');
+      setSigWorking(false);
+      return;
+    }
+
+    setSigState(s => ({ ...s, employee_signature_path: path, employee_signed_at: signedAt }));
+    setSigMsg('✓ Mes firmado correctamente');
+    setSigWorking(false);
+    setTimeout(() => setSigMsg(''), 4000);
+  };
+
+  const handleDeleteSign = async () => {
+    if (!profile || !displayName || !sigState.employee_signature_path) return;
+    setSigWorking(true);
+    setSigMsg('');
+
+    await supabase.storage.from('signatures').remove([sigState.employee_signature_path]);
+
+    const { error } = await supabase.from('timesheets').update({
+      employee_signature_path: null,
+      employee_signed_at: null,
+    }).eq('employee_name', displayName)
+      .eq('period_month', month)
+      .eq('period_year', year);
+
+    if (error) {
+      setSigMsg('Error al anular la firma.');
+      setSigWorking(false);
+      return;
+    }
+
+    setSigState(s => ({ ...s, employee_signature_path: null, employee_signed_at: null }));
+    setSigMsg('Firma anulada');
+    setSigWorking(false);
+    setTimeout(() => setSigMsg(''), 3000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-mavic-beige flex items-center justify-center">
@@ -124,6 +238,15 @@ export default function EmpleadaHorarioPage() {
 
   return (
     <div className="min-h-screen bg-mavic-beige">
+      {showSignPad && (
+        <SignaturePad
+          title="Firmar registro mensual"
+          subtitle={`${MONTHS[month - 1]} ${year} — Dibuja tu firma para confirmar el registro`}
+          onConfirm={handleSign}
+          onCancel={() => setShowSignPad(false)}
+        />
+      )}
+
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-5xl mx-auto px-4 py-5 flex justify-between items-center">
           <div>
@@ -180,7 +303,7 @@ export default function EmpleadaHorarioPage() {
                   {saveMsg}
                 </span>
               )}
-              {profile?.timesheet_permission === 'edit' && (
+              {canEdit && (
                 <>
                   <button
                     onClick={() => setEditMode(!editMode)}
@@ -206,12 +329,85 @@ export default function EmpleadaHorarioPage() {
             </div>
           </div>
           <p className="text-xs text-gray-400 mt-3">
-            {editMode
-              ? 'Modo edición activo — recuerda guardar los cambios'
-              : profile?.timesheet_permission === 'edit'
-                ? 'Modo lectura — pulsa "Editar" para modificar'
-                : 'Solo lectura'}
+            {isSigned
+              ? 'Mes firmado — no se pueden modificar los datos'
+              : editMode
+                ? 'Modo edición activo — recuerda guardar los cambios'
+                : profile?.timesheet_permission === 'edit'
+                  ? 'Modo lectura — pulsa "Editar" para modificar'
+                  : 'Solo lectura'}
           </p>
+        </div>
+
+        {/* Signature status panel */}
+        <div className="bg-white rounded-lg shadow-lg p-5 mb-5">
+          <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Firmas del mes</h2>
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* Employee signature */}
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-xs text-gray-500 font-semibold mb-1">Tu firma</p>
+              {isSigned ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
+                    <span>✓</span> Firmado
+                  </span>
+                  {sigState.employee_signed_at && (
+                    <span className="text-xs text-gray-400">{fmtTs(sigState.employee_signed_at)}</span>
+                  )}
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                  Pendiente de firma
+                </span>
+              )}
+            </div>
+
+            {/* Employer signature */}
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-xs text-gray-500 font-semibold mb-1">Firma de la empresa</p>
+              {employerSigned ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
+                    <span>✓</span> Firmado
+                  </span>
+                  {sigState.employer_signed_at && (
+                    <span className="text-xs text-gray-400">{fmtTs(sigState.employer_signed_at)}</span>
+                  )}
+                </div>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
+                  Pendiente de firma
+                </span>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 items-center flex-wrap">
+              {sigMsg && (
+                <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                  {sigMsg}
+                </span>
+              )}
+              {!isSigned && (
+                <button
+                  onClick={() => setShowSignPad(true)}
+                  disabled={sigWorking}
+                  className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                >
+                  {sigWorking ? 'Procesando...' : 'Firmar mes'}
+                </button>
+              )}
+              {isSigned && !employerSigned && (
+                <button
+                  onClick={handleDeleteSign}
+                  disabled={sigWorking}
+                  className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
+                >
+                  {sigWorking ? 'Anulando...' : 'Anular mi firma'}
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Stats */}
@@ -225,9 +421,9 @@ export default function EmpleadaHorarioPage() {
             <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Estado</p>
             <p className="text-lg font-bold text-mavic-black">{profile?.name}</p>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 inline-block ${
-              editMode ? 'bg-mavic-pink/10 text-mavic-pink' : 'bg-gray-100 text-gray-500'
+              isSigned ? 'bg-green-100 text-green-700' : editMode ? 'bg-mavic-pink/10 text-mavic-pink' : 'bg-gray-100 text-gray-500'
             }`}>
-              {editMode ? 'Editando' : 'Lectura'}
+              {isSigned ? 'Firmado' : editMode ? 'Editando' : 'Lectura'}
             </span>
           </div>
         </div>

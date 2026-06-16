@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { generateTimesheetPDF } from '@/lib/timesheet-pdf';
+import SignaturePad from '@/components/SignaturePad';
 
 interface DayEntry {
   day: number;
@@ -44,6 +45,10 @@ export default function EmpleadosPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [sigState, setSigState] = useState({ employee_signature_path: null as string | null, employer_signature_path: null as string | null, employee_signed_at: null as string | null, employer_signed_at: null as string | null });
+  const [showSignPad, setShowSignPad] = useState(false);
+  const [sigWorking, setSigWorking] = useState(false);
+  const [sigMsg, setSigMsg] = useState('');
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -64,14 +69,22 @@ export default function EmpleadosPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
+    if (!employee) return;
     const { data } = await supabase
       .from('timesheets')
-      .select('day_entries')
+      .select('day_entries, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
       .eq('employee_name', employee)
       .eq('period_month', month)
       .eq('period_year', year)
       .single();
-    setDays(data?.day_entries ?? emptyDays());
+    const row = data as { day_entries: DayEntry[]; employee_signature_path: string | null; employer_signature_path: string | null; employee_signed_at: string | null; employer_signed_at: string | null } | null;
+    setDays(row?.day_entries ?? emptyDays());
+    setSigState({
+      employee_signature_path: row?.employee_signature_path ?? null,
+      employer_signature_path: row?.employer_signature_path ?? null,
+      employee_signed_at: row?.employee_signed_at ?? null,
+      employer_signed_at: row?.employer_signed_at ?? null,
+    });
   }, [employee, month, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
@@ -114,17 +127,32 @@ export default function EmpleadosPage() {
 
   const handlePrint = () => window.print();
 
+  const downloadSig = async (path: string): Promise<Uint8Array | undefined> => {
+    const { data } = await supabase.storage.from('signatures').download(path);
+    if (!data) return undefined;
+    const buf = await data.arrayBuffer();
+    return new Uint8Array(buf);
+  };
+
   const handleGeneratePdf = async () => {
     const empProfile = employees.find(e => e.display_name === employee);
     if (!empProfile) return;
     setGeneratingPdf(true);
     try {
+      const [empSig, emplrSig] = await Promise.all([
+        sigState.employee_signature_path ? downloadSig(sigState.employee_signature_path) : Promise.resolve(undefined),
+        sigState.employer_signature_path ? downloadSig(sigState.employer_signature_path) : Promise.resolve(undefined),
+      ]);
       const pdfBytes = await generateTimesheetPDF({
         employee: empProfile,
         month,
         year,
         days,
         totalHours,
+        employeeSignature: empSig,
+        employerSignature: emplrSig,
+        employeeSignedAt: sigState.employee_signed_at ?? undefined,
+        employerSignedAt: sigState.employer_signed_at ?? undefined,
       });
       const blob = new Blob([pdfBytes], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
@@ -138,8 +166,65 @@ export default function EmpleadosPage() {
     }
   };
 
+  const handleEmployerSign = async (dataUrl: string) => {
+    const empProfile = employees.find(e => e.display_name === employee);
+    if (!empProfile) return;
+    setShowSignPad(false);
+    setSigWorking(true);
+    setSigMsg('');
+
+    const base64 = dataUrl.split(',')[1];
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+    const path = `employer/${empProfile.id}/${year}-${String(month).padStart(2,'0')}.png`;
+    const { error: upErr } = await supabase.storage
+      .from('signatures')
+      .upload(path, bytes, { contentType: 'image/png', upsert: true });
+
+    if (upErr) {
+      setSigMsg('Error al guardar la firma.');
+      setSigWorking(false);
+      return;
+    }
+
+    const signedAt = new Date().toISOString();
+    const { error: dbErr } = await supabase.from('timesheets').update({
+      employer_signature_path: path,
+      employer_signed_at: signedAt,
+    }).eq('employee_name', employee)
+      .eq('period_month', month)
+      .eq('period_year', year);
+
+    if (dbErr) {
+      setSigMsg('Error al registrar la firma en la base de datos.');
+      setSigWorking(false);
+      return;
+    }
+
+    setSigState(s => ({ ...s, employer_signature_path: path, employer_signed_at: signedAt }));
+    setSigMsg('✓ Mes firmado como empresa');
+    setSigWorking(false);
+    setTimeout(() => setSigMsg(''), 4000);
+  };
+
+  const fmtTs = (iso: string) => {
+    const d = new Date(iso);
+    return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  };
+
   return (
     <div className="min-h-screen bg-mavic-beige">
+      {showSignPad && (
+        <SignaturePad
+          title="Firmar como empresa"
+          subtitle={`${MONTHS[month - 1]} ${year} — ${employee}`}
+          onConfirm={handleEmployerSign}
+          onCancel={() => setShowSignPad(false)}
+        />
+      )}
+
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
@@ -219,6 +304,50 @@ export default function EmpleadosPage() {
             <p className="text-gray-600 text-sm font-semibold mb-2">EMPLEADA</p>
             <p className="text-2xl font-bold text-mavic-black">{employee}</p>
             <p className="text-gray-500 text-xs mt-2">{MONTHS[month - 1]} {year}</p>
+          </div>
+        </div>
+
+        {/* Signature status */}
+        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+          <h3 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Firmas del mes</h3>
+          <div className="flex flex-wrap gap-6 items-center">
+            <div>
+              <p className="text-xs text-gray-500 font-semibold mb-1">Empleada</p>
+              {sigState.employee_signature_path ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">✓ Firmado</span>
+                  {sigState.employee_signed_at && <span className="text-xs text-gray-400">{fmtTs(sigState.employee_signed_at)}</span>}
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full inline-block">Pendiente</span>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 font-semibold mb-1">Empresa</p>
+              {sigState.employer_signature_path ? (
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">✓ Firmado</span>
+                  {sigState.employer_signed_at && <span className="text-xs text-gray-400">{fmtTs(sigState.employer_signed_at)}</span>}
+                </div>
+              ) : (
+                <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full inline-block">Pendiente</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 ml-auto">
+              {sigMsg && (
+                <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{sigMsg}</span>
+              )}
+              {!sigState.employer_signature_path && (
+                <button
+                  onClick={() => setShowSignPad(true)}
+                  disabled={sigWorking || !sigState.employee_signature_path}
+                  title={!sigState.employee_signature_path ? 'La empleada debe firmar primero' : undefined}
+                  className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-40"
+                >
+                  {sigWorking ? 'Procesando...' : 'Firmar como empresa'}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
