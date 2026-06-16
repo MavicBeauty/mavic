@@ -309,7 +309,15 @@ export default function EmpleadosPage() {
 
         {/* Signature status */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h3 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Firmas del mes</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Firmas del mes</h3>
+            <button
+              onClick={() => load()}
+              className="text-xs text-gray-400 hover:text-mavic-pink font-semibold transition"
+            >
+              ↻ Actualizar
+            </button>
+          </div>
           <div className="flex flex-wrap gap-6 items-center">
             <div>
               <p className="text-xs text-gray-500 font-semibold mb-1">Empleada</p>

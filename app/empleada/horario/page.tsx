@@ -183,15 +183,16 @@ export default function EmpleadaHorarioPage() {
     }
 
     const signedAt = new Date().toISOString();
-    const { error: dbErr } = await supabase.from('timesheets').update({
+    const { data: updated, error: dbErr } = await supabase.from('timesheets').update({
       employee_signature_path: path,
       employee_signed_at: signedAt,
     }).eq('employee_name', displayName)
       .eq('period_month', month)
-      .eq('period_year', year);
+      .eq('period_year', year)
+      .select('id');
 
-    if (dbErr) {
-      setSigMsg('Error al registrar la firma. Inténtalo de nuevo.');
+    if (dbErr || !updated?.length) {
+      setSigMsg('Error al registrar la firma. Sin permiso o fila no encontrada.');
       setSigWorking(false);
       return;
     }
@@ -209,15 +210,16 @@ export default function EmpleadaHorarioPage() {
 
     await supabase.storage.from('signatures').remove([sigState.employee_signature_path]);
 
-    const { error } = await supabase.from('timesheets').update({
+    const { data: updated, error } = await supabase.from('timesheets').update({
       employee_signature_path: null,
       employee_signed_at: null,
     }).eq('employee_name', displayName)
       .eq('period_month', month)
-      .eq('period_year', year);
+      .eq('period_year', year)
+      .select('id');
 
-    if (error) {
-      setSigMsg('Error al anular la firma.');
+    if (error || !updated?.length) {
+      setSigMsg('Error al anular la firma. Sin permiso.');
       setSigWorking(false);
       return;
     }
