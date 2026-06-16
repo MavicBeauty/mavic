@@ -144,7 +144,7 @@ export async function generateTimesheetPDF({
   const title = 'REGISTRO DE LA JORNADA DE LOS TRABAJADORES';
   lText(title, bold, 11, (W - bold.widthOfTextAtSize(title, 11)) / 2, TITLE_Y);
 
-  const legal = 'En cumplimiento de la obligacion establecida en el Articulo 34.9 del Estatuto de los Trabajadores';
+  const legal = 'En cumplimiento de la obligación establecida en el Artículo 12.4.c, 34.9 y 35.5 del Estatuto de los Trabajadores';
   lText(legal, font, 7, (W - font.widthOfTextAtSize(legal, 7)) / 2, LEGAL_Y, gray);
 
   // ── EMPRESA / TRABAJADOR header box ──────────────────────────────────────
