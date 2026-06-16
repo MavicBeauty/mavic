@@ -272,17 +272,16 @@ CREATE POLICY "Owners can update gift cards" ON gift_cards
 -- ============================================
 CREATE TABLE timesheets (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  employee_name text NOT NULL,
   period_month integer NOT NULL CHECK (period_month >= 1 AND period_month <= 12),
   period_year integer NOT NULL CHECK (period_year >= 2024),
   day_entries jsonb,
   observations text,
-  created_by uuid NOT NULL REFERENCES profiles(id) ON DELETE RESTRICT,
-  updated_at timestamp with time zone DEFAULT now(),
-  UNIQUE(employee_id, period_month, period_year)
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(employee_name, period_month, period_year)
 );
 
-CREATE INDEX idx_timesheets_employee ON timesheets(employee_id);
+CREATE INDEX idx_timesheets_employee ON timesheets(employee_name);
 CREATE INDEX idx_timesheets_period ON timesheets(period_year, period_month);
 
 ALTER TABLE timesheets ENABLE ROW LEVEL SECURITY;
@@ -291,7 +290,7 @@ CREATE POLICY "Owners can view all timesheets" ON timesheets
   FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND role = 'owner'
+      WHERE id = auth.uid() AND role IN ('owner', 'employee')
     )
   );
 
@@ -299,7 +298,7 @@ CREATE POLICY "Owners can manage timesheets" ON timesheets
   FOR ALL USING (
     EXISTS (
       SELECT 1 FROM profiles
-      WHERE id = auth.uid() AND role = 'owner'
+      WHERE id = auth.uid() AND role IN ('owner', 'employee')
     )
   );
 
