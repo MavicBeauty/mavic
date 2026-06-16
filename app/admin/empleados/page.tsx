@@ -46,7 +46,7 @@ export default function EmpleadosPage() {
       .select('id, display_name')
       .eq('is_active', true)
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data }: { data: EmployeeLaborInfo[] | null }) => {
         if (data && data.length > 0) {
           setEmployees(data);
           setEmployee(data[0].display_name);
