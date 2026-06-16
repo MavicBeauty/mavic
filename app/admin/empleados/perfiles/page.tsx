@@ -108,6 +108,13 @@ function EmployeeForm({
   );
 }
 
+interface PortalAccount {
+  id: string;
+  email: string;
+  timesheet_permission: 'read' | 'edit';
+  employee_labor_info_id: string;
+}
+
 export default function EmpleadosPerfilesPage() {
   const [employees, setEmployees] = useState<EmployeeLaborInfo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,6 +122,11 @@ export default function EmpleadosPerfilesPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const [portalAccounts, setPortalAccounts] = useState<Record<string, PortalAccount>>({});
+  const [inviteEmails, setInviteEmails] = useState<Record<string, string>>({});
+  const [portalLoading, setPortalLoading] = useState<Record<string, boolean>>({});
+  const [portalMsg, setPortalMsg] = useState<Record<string, string>>({});
 
   const supabase = createClient();
 
@@ -127,7 +139,66 @@ export default function EmpleadosPerfilesPage() {
         if (data) setEmployees(data);
         setLoading(false);
       });
+    supabase
+      .from('profiles')
+      .select('id, email, timesheet_permission, employee_labor_info_id')
+      .eq('role', 'portal')
+      .then(({ data }: { data: PortalAccount[] | null }) => {
+        if (data) {
+          const map: Record<string, PortalAccount> = {};
+          data.forEach(acc => { if (acc.employee_labor_info_id) map[acc.employee_labor_info_id] = acc; });
+          setPortalAccounts(map);
+        }
+      });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSendInvite = async (employeeId: string) => {
+    const email = inviteEmails[employeeId];
+    if (!email) return;
+    setPortalLoading(l => ({ ...l, [employeeId]: true }));
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/admin/employee-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ employeeId, email }),
+    });
+    const json = await res.json();
+    if (json.error) {
+      setPortalMsg(m => ({ ...m, [employeeId]: `Error: ${json.error}` }));
+    } else {
+      setPortalAccounts(pa => ({
+        ...pa,
+        [employeeId]: { id: json.userId, email, timesheet_permission: 'read', employee_labor_info_id: employeeId },
+      }));
+      setPortalMsg(m => ({ ...m, [employeeId]: '✓ Invitación enviada' }));
+    }
+    setPortalLoading(l => ({ ...l, [employeeId]: false }));
+    setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
+  };
+
+  const handleTogglePermission = async (employeeId: string) => {
+    const acc = portalAccounts[employeeId];
+    if (!acc) return;
+    const newPerm: 'read' | 'edit' = acc.timesheet_permission === 'read' ? 'edit' : 'read';
+    setPortalLoading(l => ({ ...l, [employeeId]: true }));
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/admin/employee-account', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ userId: acc.id, permission: newPerm }),
+    });
+    const json = await res.json();
+    if (!json.error) {
+      setPortalAccounts(pa => ({ ...pa, [employeeId]: { ...acc, timesheet_permission: newPerm } }));
+    }
+    setPortalLoading(l => ({ ...l, [employeeId]: false }));
+  };
 
   const handleCreate = async (form: typeof emptyForm) => {
     setSaving(true);
@@ -265,6 +336,70 @@ export default function EmpleadosPerfilesPage() {
                           <p className="font-medium text-mavic-black">{value}</p>
                         </div>
                       ) : null)}
+                    </div>
+
+                    {/* Cuenta portal */}
+                    <div className="mt-6 pt-5 border-t border-gray-100">
+                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
+                        Cuenta portal
+                      </h3>
+                      {portalAccounts[emp.id] ? (
+                        <div className="flex flex-wrap items-center gap-3">
+                          <span className="text-sm text-gray-700 font-medium">
+                            {portalAccounts[emp.id].email}
+                          </span>
+                          <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                            portalAccounts[emp.id].timesheet_permission === 'edit'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-gray-100 text-gray-600'
+                          }`}>
+                            {portalAccounts[emp.id].timesheet_permission === 'edit'
+                              ? 'Lectura + Edición'
+                              : 'Solo lectura'}
+                          </span>
+                          <button
+                            onClick={() => handleTogglePermission(emp.id)}
+                            disabled={portalLoading[emp.id]}
+                            className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
+                          >
+                            {portalLoading[emp.id]
+                              ? 'Actualizando...'
+                              : portalAccounts[emp.id].timesheet_permission === 'edit'
+                                ? 'Cambiar a solo lectura'
+                                : 'Dar permiso de edición'}
+                          </button>
+                          {portalMsg[emp.id] && (
+                            <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                              {portalMsg[emp.id]}
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex gap-2 items-end flex-wrap">
+                          <div className="flex-1 min-w-52">
+                            <label className="block text-xs text-gray-500 mb-1">Email de la empleada</label>
+                            <input
+                              type="email"
+                              value={inviteEmails[emp.id] || ''}
+                              onChange={e => setInviteEmails(ie => ({ ...ie, [emp.id]: e.target.value }))}
+                              placeholder="correo@ejemplo.com"
+                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleSendInvite(emp.id)}
+                            disabled={!inviteEmails[emp.id] || portalLoading[emp.id]}
+                            className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-mavic-pink/90 transition whitespace-nowrap"
+                          >
+                            {portalLoading[emp.id] ? 'Enviando...' : 'Enviar invitación'}
+                          </button>
+                          {portalMsg[emp.id] && (
+                            <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                              {portalMsg[emp.id]}
+                            </span>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
