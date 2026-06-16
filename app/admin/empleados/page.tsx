@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { generateTimesheetPDF } from '@/lib/timesheet-pdf';
 
 interface DayEntry {
   day: number;
@@ -17,6 +18,13 @@ interface DayEntry {
 interface EmployeeLaborInfo {
   id: string;
   display_name: string;
+  nombre_completo: string;
+  nif: string;
+  num_afiliacion_ss?: string;
+  puesto_trabajo?: string;
+  categoria?: string;
+  grupo_cotizacion?: string;
+  fecha_antiguedad?: string;
 }
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -35,6 +43,7 @@ export default function EmpleadosPage() {
   const [days, setDays] = useState<DayEntry[]>(emptyDays());
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -43,7 +52,7 @@ export default function EmpleadosPage() {
   useEffect(() => {
     supabase
       .from('employee_labor_info')
-      .select('id, display_name')
+      .select('*')
       .eq('is_active', true)
       .order('created_at', { ascending: true })
       .then(({ data }: { data: EmployeeLaborInfo[] | null }) => {
@@ -105,6 +114,30 @@ export default function EmpleadosPage() {
 
   const handlePrint = () => window.print();
 
+  const handleGeneratePdf = async () => {
+    const empProfile = employees.find(e => e.display_name === employee);
+    if (!empProfile) return;
+    setGeneratingPdf(true);
+    try {
+      const pdfBytes = await generateTimesheetPDF({
+        employee: empProfile,
+        month,
+        year,
+        days,
+        totalHours,
+      });
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `registro_jornada_${employee.toLowerCase()}_${String(month).padStart(2,'0')}_${year}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setGeneratingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-mavic-beige">
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
@@ -156,9 +189,9 @@ export default function EmpleadosPage() {
                 className="flex-1 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
-              <button onClick={handlePrint}
-                className="flex-1 bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold py-2 px-4 rounded-lg transition">
-                Imprimir
+              <button onClick={handleGeneratePdf} disabled={generatingPdf || employees.length === 0}
+                className="flex-1 bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
+                {generatingPdf ? 'Generando...' : 'Generar PDF'}
               </button>
             </div>
             <div>
