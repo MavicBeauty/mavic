@@ -11,6 +11,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +29,18 @@ export default function LoginPage() {
     }
 
     router.push('/admin/dashboard');
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) { setError('Escribe tu email primero.'); return; }
+    setResetLoading(true);
+    setError('');
+    const supabase = createClient();
+    await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/admin/reset-password`,
+    });
+    setResetSent(true);
+    setResetLoading(false);
   };
 
   return (
@@ -69,12 +83,26 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+          {resetSent && (
+            <div className="bg-green-50 border border-green-200 text-green-700 rounded-xl px-4 py-3 text-sm font-medium">
+              Enlace enviado — revisa tu correo.
+            </div>
+          )}
 
           <button
             type="submit"
             disabled={loading}
             className="w-full bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-3 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed mt-2">
             {loading ? 'Entrando...' : 'Entrar'}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            className="w-full text-sm text-gray-400 hover:text-mavic-pink font-semibold transition disabled:opacity-50 pt-1"
+          >
+            {resetLoading ? 'Enviando...' : '¿Olvidaste tu contraseña?'}
           </button>
         </form>
       </div>
