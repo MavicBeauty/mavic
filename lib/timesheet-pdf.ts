@@ -209,19 +209,23 @@ export async function generateTimesheetPDF({
   const compLabel = 'COMP / EXTRA';
   lText(compLabel, bold, 5.5, compSpanX + (compSpanW - bold.widthOfTextAtSize(compLabel, 5.5)) / 2, H1Y);
 
+  // Midline separating section labels from column labels
+  const H_MID_Y = CH_TOP - 17;
+  hLine(H_MID_Y, L, R, 0.4);
+
   // Column labels (row 2)
-  const H2Y = CH_TOP - 22;
+  const H2Y = CH_TOP - 25;
   const h2 = (text: string, col: Col) =>
-    lText(text, bold, 6, col.x + (col.w - bold.widthOfTextAtSize(text, 6)) / 2, H2Y);
+    lText(text, bold, 5.5, col.x + (col.w - bold.widthOfTextAtSize(text, 5.5)) / 2, H2Y);
 
   h2('DIA',      COLS.dia);
-  h2('ENT',      COLS.ent1);
-  h2('SAL',      COLS.sal1);
-  h2('ENT',      COLS.ent2);
-  h2('SAL',      COLS.sal2);
+  h2('ENTRADA',  COLS.ent1);
+  h2('SALIDA',   COLS.sal1);
+  h2('ENTRADA',  COLS.ent2);
+  h2('SALIDA',   COLS.sal2);
   h2('TOTAL',    COLS.tot);
-  h2('ENT',      COLS.ent_comp);
-  h2('SAL',      COLS.sal_comp);
+  h2('ENTRADA',  COLS.ent_comp);
+  h2('SALIDA',   COLS.sal_comp);
   h2('AUSENCIA', COLS.ausencia);
   h2('FIRMA',    COLS.firma);
 
@@ -236,7 +240,11 @@ export async function generateTimesheetPDF({
   // Grid: vertical lines (span full grid including headers and total row)
   const VL_TOP = CH_TOP;
   const VL_BOT = TOT_BOT;
-  Object.values(COLS).forEach(col => vLine(col.x, VL_BOT, VL_TOP));
+  Object.values(COLS).forEach(col => {
+    // Thicker line between HORAS ORDINARIAS and COMP/EXTRA sections
+    const thick = col.x === COLS.ent_comp.x ? 1.2 : 0.5;
+    vLine(col.x, VL_BOT, VL_TOP, thick);
+  });
   vLine(R, VL_BOT, VL_TOP);
 
   // ── Data rows ─────────────────────────────────────────────────────────────
@@ -247,33 +255,27 @@ export async function generateTimesheetPDF({
     const rowBot = rowTop - ROW_H;
     const textY  = rowBot + 4;
 
-    const dow = new Date(year, month - 1, dayNum).getDay();
-    const isWeekend = dow === 0 || dow === 6;
     const isOutOfRange = dayNum > daysInMonth;
+    if (isOutOfRange) continue;
 
-    if (isWeekend || isOutOfRange) {
-      page.drawRectangle({ x: L + 0.5, y: rowBot + 0.5, width: R - L - 1, height: ROW_H - 1, color: lgray });
-    }
+    const dow = new Date(year, month - 1, dayNum).getDay();
 
     // Day number + day-of-week letter
     const DOW_LETTER = ['D','L','M','X','J','V','S'];
-    const dayLabel = !isOutOfRange ? `${dayNum} ${DOW_LETTER[dow]}` : String(dayNum);
-    cText(dayLabel, font, 6.5, COLS.dia, textY);
+    cText(`${dayNum} ${DOW_LETTER[dow]}`, font, 6.5, COLS.dia, textY);
 
-    if (!isOutOfRange) {
-      const entry = days.find(d => d.day === dayNum);
-      if (entry) {
-        if (entry.absence !== 'none') {
-          const absLabel = ABSENCE_LABELS[entry.absence] || '';
-          cText(absLabel, font, 6, COLS.ent1, textY);
-        } else {
-          if (entry.entry1) cText(entry.entry1, font, 6.5, COLS.ent1, textY);
-          if (entry.exit1)  cText(entry.exit1,  font, 6.5, COLS.sal1,  textY);
-          if (entry.entry2) cText(entry.entry2, font, 6.5, COLS.ent2,  textY);
-          if (entry.exit2)  cText(entry.exit2,  font, 6.5, COLS.sal2,  textY);
-          const hrs = calcDailyHours(entry);
-          if (hrs > 0) cText(hrs.toFixed(1) + 'h', font, 6.5, COLS.tot, textY);
-        }
+    const entry = days.find(d => d.day === dayNum);
+    if (entry) {
+      if (entry.absence !== 'none') {
+        const absLabel = ABSENCE_LABELS[entry.absence] || '';
+        cText(absLabel, font, 6, COLS.ent1, textY);
+      } else {
+        if (entry.entry1) cText(entry.entry1, font, 6.5, COLS.ent1, textY);
+        if (entry.exit1)  cText(entry.exit1,  font, 6.5, COLS.sal1,  textY);
+        if (entry.entry2) cText(entry.entry2, font, 6.5, COLS.ent2,  textY);
+        if (entry.exit2)  cText(entry.exit2,  font, 6.5, COLS.sal2,  textY);
+        const hrs = calcDailyHours(entry);
+        if (hrs > 0) cText(hrs.toFixed(1) + 'h', bold, 7, COLS.tot, textY);
       }
     }
   }
