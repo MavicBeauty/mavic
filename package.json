@@ -13,6 +13,7 @@
     "docx": "8.5.0",
     "next": "^14.2.35",
     "next-intl": "2.16.0",
+    "nodemailer": "^9.0.0",
     "pdf-lib": "1.17.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
@@ -22,6 +23,7 @@
   "devDependencies": {
     "@tailwindcss/forms": "0.5.6",
     "@types/node": "20.10.6",
+    "@types/nodemailer": "^8.0.1",
     "@types/react": "18.2.45",
     "@types/react-dom": "18.2.18",
     "autoprefixer": "10.4.16",

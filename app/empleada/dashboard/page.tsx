@@ -8,6 +8,11 @@ import { createClient } from '@/lib/supabase/client';
 export default function EmpleadaDashboardPage() {
   const router = useRouter();
   const [name, setName] = useState('');
+  const [showPwForm, setShowPwForm] = useState(false);
+  const [pw, setPw] = useState('');
+  const [pw2, setPw2] = useState('');
+  const [pwLoading, setPwLoading] = useState(false);
+  const [pwMsg, setPwMsg] = useState('');
 
   const supabase = createClient();
 
@@ -26,6 +31,23 @@ export default function EmpleadaDashboardPage() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push('/empleada');
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pw !== pw2) { setPwMsg('Las contraseñas no coinciden.'); return; }
+    if (pw.length < 8) { setPwMsg('Mínimo 8 caracteres.'); return; }
+    setPwLoading(true);
+    setPwMsg('');
+    const { error } = await supabase.auth.updateUser({ password: pw });
+    if (error) {
+      setPwMsg(`Error: ${error.message}`);
+    } else {
+      setPwMsg('✓ Contraseña actualizada');
+      setPw(''); setPw2('');
+      setTimeout(() => { setShowPwForm(false); setPwMsg(''); }, 2000);
+    }
+    setPwLoading(false);
   };
 
   return (
@@ -80,6 +102,75 @@ export default function EmpleadaDashboardPage() {
               <p className="text-gray-500 text-sm">Próximamente</p>
             </div>
           </div>
+        </div>
+
+        {/* Password change */}
+        <div className="bg-white rounded-2xl shadow p-6">
+          <button
+            onClick={() => { setShowPwForm(v => !v); setPwMsg(''); setPw(''); setPw2(''); }}
+            className="w-full flex items-center gap-4 text-left"
+          >
+            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+            </div>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-mavic-black">Cambiar contraseña</h2>
+              <p className="text-gray-500 text-sm">Actualiza tu acceso al portal</p>
+            </div>
+            <span className="text-gray-300 text-xl font-light">{showPwForm ? '−' : '+'}</span>
+          </button>
+
+          {showPwForm && (
+            <form onSubmit={handleChangePassword} className="mt-5 space-y-3 border-t border-gray-100 pt-5">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Nueva contraseña</label>
+                <input
+                  type="password"
+                  value={pw}
+                  onChange={e => setPw(e.target.value)}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  placeholder="Mínimo 8 caracteres"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Confirmar contraseña</label>
+                <input
+                  type="password"
+                  value={pw2}
+                  onChange={e => setPw2(e.target.value)}
+                  required
+                  autoComplete="new-password"
+                  className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                />
+              </div>
+              {pwMsg && (
+                <p className={`text-sm font-semibold ${pwMsg.startsWith('Error') || pwMsg.includes('no coinciden') || pwMsg.includes('Mínimo') ? 'text-red-600' : 'text-green-600'}`}>
+                  {pwMsg}
+                </p>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="submit"
+                  disabled={pwLoading}
+                  className="px-6 py-2 bg-gradient-to-r from-mavic-pink to-mavic-gold text-white text-sm font-bold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                >
+                  {pwLoading ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowPwForm(false); setPwMsg(''); }}
+                  className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 font-semibold transition"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </main>
     </div>

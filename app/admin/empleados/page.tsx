@@ -49,6 +49,8 @@ export default function EmpleadosPage() {
   const [showSignPad, setShowSignPad] = useState(false);
   const [sigWorking, setSigWorking] = useState(false);
   const [sigMsg, setSigMsg] = useState('');
+  const [sending, setSending] = useState(false);
+  const [sendMsg, setSendMsg] = useState('');
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -214,6 +216,44 @@ export default function EmpleadosPage() {
     return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
   };
 
+  const handleSendToGestoria = async () => {
+    const empProfile = employees.find(e => e.display_name === employee);
+    if (!empProfile) return;
+    setSending(true);
+    setSendMsg('');
+    try {
+      const [empSig, emplrSig] = await Promise.all([
+        sigState.employee_signature_path ? downloadSig(sigState.employee_signature_path) : Promise.resolve(undefined),
+        sigState.employer_signature_path ? downloadSig(sigState.employer_signature_path) : Promise.resolve(undefined),
+      ]);
+      const pdfBytes = await generateTimesheetPDF({
+        employee: empProfile, month, year, days, totalHours,
+        employeeSignature: empSig, employerSignature: emplrSig,
+        employeeSignedAt: sigState.employee_signed_at ?? undefined,
+        employerSignedAt: sigState.employer_signed_at ?? undefined,
+      });
+      // Convert to base64
+      const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/send-timesheet', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ pdfBase64, employeeName: employee, month, year }),
+      });
+      const json = await res.json();
+      if (json.error) {
+        setSendMsg(`Error: ${json.error}`);
+      } else {
+        setSendMsg('✓ Enviado a la gestoría');
+        setTimeout(() => setSendMsg(''), 5000);
+      }
+    } catch (e) {
+      setSendMsg(`Error: ${e instanceof Error ? e.message : 'desconocido'}`);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-mavic-beige">
       {showSignPad && (
@@ -341,9 +381,11 @@ export default function EmpleadosPage() {
                 <span className="text-xs font-semibold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-full inline-block">Pendiente</span>
               )}
             </div>
-            <div className="flex items-center gap-3 ml-auto">
-              {sigMsg && (
-                <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>{sigMsg}</span>
+            <div className="flex flex-wrap items-center gap-3 ml-auto">
+              {(sigMsg || sendMsg) && (
+                <span className={`text-sm font-semibold ${(sigMsg || sendMsg).startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                  {sigMsg || sendMsg}
+                </span>
               )}
               {!sigState.employer_signature_path && (
                 <button
@@ -353,6 +395,15 @@ export default function EmpleadosPage() {
                   className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-40"
                 >
                   {sigWorking ? 'Procesando...' : 'Firmar como empresa'}
+                </button>
+              )}
+              {sigState.employee_signature_path && sigState.employer_signature_path && (
+                <button
+                  onClick={handleSendToGestoria}
+                  disabled={sending}
+                  className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-40"
+                >
+                  {sending ? 'Enviando...' : 'Enviar a gestoría'}
                 </button>
               )}
             </div>
