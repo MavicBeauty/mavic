@@ -123,7 +123,7 @@ export default function EmpleadosPerfilesPage() {
       .from('employee_labor_info')
       .select('*')
       .order('created_at', { ascending: true })
-      .then(({ data }) => {
+      .then(({ data }: { data: EmployeeLaborInfo[] | null }) => {
         if (data) setEmployees(data);
         setLoading(false);
       });
