@@ -108,6 +108,13 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [editData, setEditData] = useState({
+    name: '', apellidos: '', phone: '', dni: '',
+    fecha_nacimiento: '', direccion: '', poblacion: '', cp: '', provincia: '',
+  });
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const handleDeleteSession = async (sessionId: string, sessionDate: string) => {
     if (!confirm(`¿Eliminar la sesión del ${new Date(sessionDate).toLocaleDateString('es-ES')}? Esta acción no se puede deshacer.`)) return;
@@ -132,6 +139,37 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
     await supabase.from('clinical_sessions').delete().eq('client_id', params.id);
     await supabase.from('clients').delete().eq('id', params.id);
     router.push('/admin/clientes');
+  };
+
+  const handleEditStart = () => {
+    if (!client) return;
+    setEditData({
+      name: client.name || '',
+      apellidos: client.apellidos || '',
+      phone: client.phone || '',
+      dni: client.dni || '',
+      fecha_nacimiento: client.fecha_nacimiento ? client.fecha_nacimiento.slice(0, 10) : '',
+      direccion: client.direccion || '',
+      poblacion: client.poblacion || '',
+      cp: client.cp || '',
+      provincia: client.provincia || '',
+    });
+    setSaveError('');
+    setEditing(true);
+  };
+
+  const handleEditSave = async () => {
+    setSaving(true);
+    setSaveError('');
+    const supabase = createClient();
+    const { error } = await supabase.from('clients').update(editData).eq('id', params.id);
+    if (error) {
+      setSaveError('Error al guardar: ' + error.message);
+    } else {
+      setClient(c => c ? { ...c, ...editData } : c);
+      setEditing(false);
+    }
+    setSaving(false);
   };
 
   useEffect(() => {
@@ -203,37 +241,123 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
       <main className="max-w-6xl mx-auto px-4 py-12">
         {/* Client Info */}
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <h2 className="text-xl font-bold text-mavic-black mb-4">Información del Cliente</h2>
-          <div className="grid md:grid-cols-3 gap-6">
-            <div>
-              <p className="text-sm text-gray-600">Nombre completo</p>
-              <p className="text-lg font-semibold text-mavic-black">{client.name} {client.apellidos}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">Teléfono</p>
-              <p className="text-lg font-semibold text-mavic-black">{client.phone}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-600">DNI/NIE</p>
-              <p className="text-lg font-semibold text-mavic-black">{client.dni || '—'}</p>
-            </div>
-            {client.fecha_nacimiento && (
-              <div>
-                <p className="text-sm text-gray-600">Fecha de Nacimiento</p>
-                <p className="text-lg font-semibold text-mavic-black">
-                  {new Date(client.fecha_nacimiento).toLocaleDateString('es-ES')}
-                </p>
-              </div>
-            )}
-            {client.direccion && (
-              <div className="md:col-span-2">
-                <p className="text-sm text-gray-600">Dirección</p>
-                <p className="text-lg font-semibold text-mavic-black">
-                  {client.direccion}{client.poblacion ? `, ${client.poblacion}` : ''}{client.cp ? ` ${client.cp}` : ''}{client.provincia ? ` (${client.provincia})` : ''}
-                </p>
-              </div>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-mavic-black">Información del Cliente</h2>
+            {!editing && (
+              <button
+                onClick={handleEditStart}
+                className="text-sm font-semibold text-mavic-pink hover:text-mavic-pink/70 transition"
+              >
+                Editar
+              </button>
             )}
           </div>
+
+          {editing ? (
+            <div className="space-y-6">
+              {saveError && (
+                <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">{saveError}</div>
+              )}
+              <div className="grid md:grid-cols-2 gap-4">
+                {[
+                  { name: 'name', label: 'Nombre *', type: 'text', required: true },
+                  { name: 'apellidos', label: 'Apellidos', type: 'text' },
+                  { name: 'phone', label: 'Teléfono *', type: 'tel', required: true },
+                  { name: 'dni', label: 'DNI/NIE', type: 'text' },
+                  { name: 'fecha_nacimiento', label: 'Fecha de Nacimiento', type: 'date' },
+                ].map(({ name, label, type, required }) => (
+                  <div key={name}>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+                    <input
+                      type={type}
+                      value={editData[name as keyof typeof editData]}
+                      onChange={e => setEditData(d => ({ ...d, [name]: e.target.value }))}
+                      required={required}
+                      disabled={saving}
+                      className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink disabled:opacity-50"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Dirección</label>
+                  <input
+                    type="text"
+                    value={editData.direccion}
+                    onChange={e => setEditData(d => ({ ...d, direccion: e.target.value }))}
+                    disabled={saving}
+                    className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink disabled:opacity-50"
+                  />
+                </div>
+                <div className="grid md:grid-cols-3 gap-4">
+                  {[
+                    { name: 'poblacion', label: 'Población' },
+                    { name: 'cp', label: 'Código Postal' },
+                    { name: 'provincia', label: 'Provincia' },
+                  ].map(({ name, label }) => (
+                    <div key={name}>
+                      <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+                      <input
+                        type="text"
+                        value={editData[name as keyof typeof editData]}
+                        onChange={e => setEditData(d => ({ ...d, [name]: e.target.value }))}
+                        disabled={saving}
+                        className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink disabled:opacity-50"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleEditSave}
+                  disabled={saving}
+                  className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white font-bold px-6 py-2 rounded-lg hover:shadow-lg transition disabled:opacity-50"
+                >
+                  {saving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                <button
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-6 py-2 rounded-lg transition disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6">
+              <div>
+                <p className="text-sm text-gray-600">Nombre completo</p>
+                <p className="text-lg font-semibold text-mavic-black">{client.name} {client.apellidos}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">Teléfono</p>
+                <p className="text-lg font-semibold text-mavic-black">{client.phone}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">DNI/NIE</p>
+                <p className="text-lg font-semibold text-mavic-black">{client.dni || '—'}</p>
+              </div>
+              {client.fecha_nacimiento && (
+                <div>
+                  <p className="text-sm text-gray-600">Fecha de Nacimiento</p>
+                  <p className="text-lg font-semibold text-mavic-black">
+                    {new Date(client.fecha_nacimiento).toLocaleDateString('es-ES')}
+                  </p>
+                </div>
+              )}
+              {client.direccion && (
+                <div className="md:col-span-2">
+                  <p className="text-sm text-gray-600">Dirección</p>
+                  <p className="text-lg font-semibold text-mavic-black">
+                    {client.direccion}{client.poblacion ? `, ${client.poblacion}` : ''}{client.cp ? ` ${client.cp}` : ''}{client.provincia ? ` (${client.provincia})` : ''}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Consent Form */}

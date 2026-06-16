@@ -84,7 +84,7 @@ export default function ClientsPage() {
               className="w-full px-4 py-2 border border-mavic-beige-dark rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
             />
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Filtrar por:</span>
+              <span className="text-sm text-gray-500">Filtrar solo por:</span>
               {(['name', 'phone', 'dni'] as const).map((type) => {
                 const labels = { name: 'Nombre', phone: 'Teléfono', dni: 'DNI' };
                 const active = searchType === type;
