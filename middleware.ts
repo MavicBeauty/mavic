@@ -4,7 +4,7 @@ export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
   // Skip middleware for admin routes, API routes, and standalone pages
-  if (pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname.startsWith('/consentimiento')) {
+  if (pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname.startsWith('/consentimiento') || pathname.startsWith('/empleada')) {
     return NextResponse.next();
   }
 
