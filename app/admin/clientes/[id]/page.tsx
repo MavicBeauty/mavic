@@ -42,6 +42,13 @@ interface ClientProfile {
   created_at: string;
 }
 
+interface ClientAttachment {
+  id: string;
+  file_name: string;
+  storage_path: string;
+  created_at: string;
+}
+
 function UploadConsentButton({ clientId, onDone }: { clientId: string; onDone: () => void }) {
   const [uploading, setUploading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -86,6 +93,47 @@ function UploadConsentButton({ clientId, onDone }: { clientId: string; onDone: (
   );
 }
 
+function UploadAttachmentButton({ clientId, onDone }: { clientId: string; onDone: (a: ClientAttachment) => void }) {
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    const supabase = createClient();
+    const ext = file.name.split('.').pop();
+    const storagePath = `adjunto_${clientId}_${Date.now()}.${ext}`;
+    const { error: uploadError } = await supabase.storage
+      .from('client-documents')
+      .upload(storagePath, file, { upsert: false });
+    if (!uploadError) {
+      const { data } = await supabase
+        .from('client_attachments')
+        .insert([{ client_id: clientId, file_name: file.name, storage_path: storagePath }])
+        .select()
+        .single();
+      if (data) onDone(data as ClientAttachment);
+    }
+    if (inputRef.current) inputRef.current.value = '';
+    setUploading(false);
+  };
+
+  return (
+    <>
+      <input ref={inputRef} type="file" accept="image/*,application/pdf" className="hidden" onChange={handleFile} />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="text-sm font-semibold text-mavic-pink hover:text-mavic-pink/70 transition disabled:opacity-50"
+      >
+        {uploading ? 'Subiendo...' : '+ Añadir documento'}
+      </button>
+    </>
+  );
+}
+
 function DownloadDocButton({ path, label = 'Descargar PDF →' }: { path: string; label?: string }) {
   const supabase = createClient();
   const handleDownload = async () => {
@@ -105,9 +153,11 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   const [client, setClient] = useState<ClientProfile | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [consent, setConsent] = useState<ConsentForm | null>(null);
+  const [attachments, setAttachments] = useState<ClientAttachment[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [deletingSession, setDeletingSession] = useState<string | null>(null);
+  const [deletingAttachment, setDeletingAttachment] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState({
     name: '', apellidos: '', phone: '', dni: '',
@@ -126,15 +176,27 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
     setDeletingSession(null);
   };
 
+  const handleDeleteAttachment = async (attachment: ClientAttachment) => {
+    if (!confirm(`¿Eliminar "${attachment.file_name}"? Esta acción no se puede deshacer.`)) return;
+    setDeletingAttachment(attachment.id);
+    const supabase = createClient();
+    await supabase.storage.from('client-documents').remove([attachment.storage_path]);
+    await supabase.from('client_attachments').delete().eq('id', attachment.id);
+    setAttachments(a => a.filter(x => x.id !== attachment.id));
+    setDeletingAttachment(null);
+  };
+
   const handleDelete = async () => {
     if (!confirm(`¿Eliminar a ${client?.name} ${client?.apellidos}? Se borrarán también sus sesiones y consentimiento. Esta acción no se puede deshacer.`)) return;
     setDeleting(true);
     const supabase = createClient();
-    // Delete stored files first
     const { data: forms } = await supabase.from('consent_forms').select('doc_storage_path').eq('client_id', params.id);
-    const paths = (forms || []).map((f: { doc_storage_path: string }) => f.doc_storage_path).filter(Boolean);
+    const { data: attachs } = await supabase.from('client_attachments').select('storage_path').eq('client_id', params.id);
+    const paths = [
+      ...(forms || []).map((f: { doc_storage_path: string }) => f.doc_storage_path),
+      ...(attachs || []).map((a: { storage_path: string }) => a.storage_path),
+    ].filter(Boolean);
     if (paths.length) await supabase.storage.from('client-documents').remove(paths);
-    // Delete DB records
     await supabase.from('consent_forms').delete().eq('client_id', params.id);
     await supabase.from('clinical_sessions').delete().eq('client_id', params.id);
     await supabase.from('clients').delete().eq('id', params.id);
@@ -187,10 +249,16 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
         .select('*')
         .eq('client_id', params.id)
         .single(),
-    ]).then(([clientRes, sessionsRes, consentRes]) => {
+      supabase
+        .from('client_attachments')
+        .select('*')
+        .eq('client_id', params.id)
+        .order('created_at', { ascending: true }),
+    ]).then(([clientRes, sessionsRes, consentRes, attachmentsRes]) => {
       if (clientRes.data) setClient(clientRes.data);
       if (sessionsRes.data) setSessions(sessionsRes.data);
       if (consentRes.data) setConsent(consentRes.data);
+      if (attachmentsRes.data) setAttachments(attachmentsRes.data);
       setLoading(false);
     });
   }, [params.id]);
@@ -395,6 +463,45 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
               </div>
             </div>
           )}
+
+          {/* Attachments */}
+          <div className="mt-6 pt-5 border-t border-gray-100">
+            <div className="flex justify-between items-center mb-3">
+              <p className="text-sm font-semibold text-gray-600">Documentos adicionales</p>
+              <UploadAttachmentButton
+                clientId={client.id}
+                onDone={attachment => setAttachments(a => [...a, attachment])}
+              />
+            </div>
+            {attachments.length === 0 ? (
+              <p className="text-sm text-gray-400 italic">Sin documentos adjuntos</p>
+            ) : (
+              <ul className="space-y-2">
+                {attachments.map(attachment => (
+                  <li key={attachment.id} className="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-mavic-black">{attachment.file_name}</p>
+                      <p className="text-xs text-gray-500">
+                        {new Date(attachment.created_at).toLocaleDateString('es-ES', {
+                          day: 'numeric', month: 'long', year: 'numeric',
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <DownloadDocButton path={attachment.storage_path} label="Descargar →" />
+                      <button
+                        onClick={() => handleDeleteAttachment(attachment)}
+                        disabled={deletingAttachment === attachment.id}
+                        className="text-red-400 hover:text-red-600 text-sm font-semibold transition disabled:opacity-50"
+                      >
+                        {deletingAttachment === attachment.id ? '...' : 'Eliminar'}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {/* Clinical History */}

@@ -333,5 +333,35 @@ CREATE TRIGGER update_gift_cards_updated_at BEFORE UPDATE ON gift_cards
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
+-- 9. CLIENT ATTACHMENTS (optional sub-files per client)
+-- ============================================
+CREATE TABLE client_attachments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  client_id uuid NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+  file_name text NOT NULL,
+  storage_path text NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX idx_attachments_client ON client_attachments(client_id);
+
+ALTER TABLE client_attachments ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view attachments" ON client_attachments
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'employee'))
+  );
+
+CREATE POLICY "Admins can insert attachments" ON client_attachments
+  FOR INSERT WITH CHECK (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'employee'))
+  );
+
+CREATE POLICY "Admins can delete attachments" ON client_attachments
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'employee'))
+  );
+
+-- ============================================
 -- Done! All tables created with RLS policies
 -- ============================================
