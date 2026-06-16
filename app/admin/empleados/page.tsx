@@ -14,7 +14,10 @@ interface DayEntry {
   notes: string;
 }
 
-const EMPLOYEES = ['Maria', 'Jose'];
+interface EmployeeLaborInfo {
+  id: string;
+  display_name: string;
+}
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -25,7 +28,8 @@ function emptyDays(): DayEntry[] {
 }
 
 export default function EmpleadosPage() {
-  const [employee, setEmployee] = useState(EMPLOYEES[0]);
+  const [employees, setEmployees] = useState<EmployeeLaborInfo[]>([]);
+  const [employee, setEmployee] = useState('');
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [days, setDays] = useState<DayEntry[]>(emptyDays());
@@ -35,6 +39,20 @@ export default function EmpleadosPage() {
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
   const daysInMonth = new Date(year, month, 0).getDate();
+
+  useEffect(() => {
+    supabase
+      .from('employee_labor_info')
+      .select('id, display_name')
+      .eq('is_active', true)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data && data.length > 0) {
+          setEmployees(data);
+          setEmployee(data[0].display_name);
+        }
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -95,7 +113,12 @@ export default function EmpleadosPage() {
             <h1 className="text-3xl font-bold">Control de Horarios</h1>
             <p className="text-white/80 mt-1">Registro diario de horas trabajadas</p>
           </div>
-          <Link href="/admin/dashboard" className="text-white hover:text-gray-100 font-semibold transition">← Volver</Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/empleados/perfiles" className="text-white/80 hover:text-white font-semibold transition text-sm">
+              Gestionar perfiles →
+            </Link>
+            <Link href="/admin/dashboard" className="text-white hover:text-gray-100 font-semibold transition">← Volver</Link>
+          </div>
         </div>
       </header>
 
@@ -106,8 +129,12 @@ export default function EmpleadosPage() {
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Empleada</label>
               <select value={employee} onChange={(e) => setEmployee(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
-                {EMPLOYEES.map((e) => <option key={e} value={e}>{e}</option>)}
+                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                disabled={employees.length === 0}>
+                {employees.length === 0
+                  ? <option>Sin empleadas registradas</option>
+                  : employees.map((e) => <option key={e.id} value={e.display_name}>{e.display_name}</option>)
+                }
               </select>
             </div>
             <div>

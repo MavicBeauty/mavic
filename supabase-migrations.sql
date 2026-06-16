@@ -332,7 +332,36 @@ CREATE TRIGGER update_gift_cards_updated_at BEFORE UPDATE ON gift_cards
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================
--- 9. CLIENT ATTACHMENTS (optional sub-files per client)
+-- 9. EMPLOYEE LABOR INFO (for timesheet PDF generation)
+-- ============================================
+CREATE TABLE employee_labor_info (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  display_name text NOT NULL,
+  nombre_completo text NOT NULL,
+  nif text NOT NULL,
+  num_afiliacion_ss text,
+  puesto_trabajo text,
+  categoria text,
+  grupo_cotizacion text,
+  fecha_antiguedad text,
+  is_active boolean DEFAULT true,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+ALTER TABLE employee_labor_info ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can manage employee labor info" ON employee_labor_info
+  FOR ALL USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('owner', 'employee'))
+  );
+
+CREATE TRIGGER update_employee_labor_info_updated_at
+  BEFORE UPDATE ON employee_labor_info
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
+-- 10. CLIENT ATTACHMENTS (optional sub-files per client)
 -- ============================================
 CREATE TABLE client_attachments (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

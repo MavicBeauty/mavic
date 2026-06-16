@@ -1,0 +1,278 @@
+'use client';
+
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+
+interface EmployeeLaborInfo {
+  id: string;
+  display_name: string;
+  nombre_completo: string;
+  nif: string;
+  num_afiliacion_ss: string;
+  puesto_trabajo: string;
+  categoria: string;
+  grupo_cotizacion: string;
+  fecha_antiguedad: string;
+  is_active: boolean;
+}
+
+const emptyForm = {
+  display_name: '',
+  nombre_completo: '',
+  nif: '',
+  num_afiliacion_ss: '',
+  puesto_trabajo: '',
+  categoria: '',
+  grupo_cotizacion: '',
+  fecha_antiguedad: '',
+  is_active: true,
+};
+
+const FIELDS: { key: keyof typeof emptyForm; label: string; hint?: string }[] = [
+  { key: 'display_name', label: 'Nombre en la app', hint: 'Ej: María, Yoryerily' },
+  { key: 'nombre_completo', label: 'Nombre completo para el PDF', hint: 'Apellidos + Nombre en mayúsculas · Ej: BARRERA QUINTERO YORYERILY MAIBELIN' },
+  { key: 'nif', label: 'NIF / NIE', hint: 'Ej: Z1247983P' },
+  { key: 'num_afiliacion_ss', label: 'Núm. afiliación Seg. Social', hint: 'Ej: 081479985953' },
+  { key: 'puesto_trabajo', label: 'Puesto de trabajo', hint: 'Opcional' },
+  { key: 'categoria', label: 'Categoría profesional', hint: 'Ej: MANICURA' },
+  { key: 'grupo_cotizacion', label: 'Grupo de cotización', hint: 'Ej: 08' },
+  { key: 'fecha_antiguedad', label: 'Fecha de antigüedad', hint: 'Formato DD/MM/AAAA · Ej: 14/02/2025' },
+];
+
+function EmployeeForm({
+  initial,
+  onSave,
+  onCancel,
+  saving,
+  error,
+}: {
+  initial: typeof emptyForm;
+  onSave: (data: typeof emptyForm) => void;
+  onCancel: () => void;
+  saving: boolean;
+  error: string;
+}) {
+  const [form, setForm] = useState(initial);
+  const set = (key: string, value: string | boolean) => setForm(f => ({ ...f, [key]: value }));
+
+  return (
+    <div className="space-y-4">
+      {error && (
+        <div className="p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">{error}</div>
+      )}
+      <div className="grid md:grid-cols-2 gap-4">
+        {FIELDS.map(({ key, label, hint }) => (
+          <div key={key} className={key === 'nombre_completo' ? 'md:col-span-2' : ''}>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">{label}</label>
+            <input
+              type="text"
+              value={form[key] as string}
+              onChange={e => set(key, e.target.value)}
+              placeholder={hint}
+              disabled={saving}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink disabled:opacity-50"
+            />
+            {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center gap-2">
+        <input
+          type="checkbox"
+          id="is_active"
+          checked={form.is_active}
+          onChange={e => set('is_active', e.target.checked)}
+          disabled={saving}
+          className="accent-mavic-pink"
+        />
+        <label htmlFor="is_active" className="text-sm text-gray-700">Empleada activa</label>
+      </div>
+      <div className="flex gap-3 pt-2">
+        <button
+          onClick={() => onSave(form)}
+          disabled={saving || !form.display_name || !form.nombre_completo || !form.nif}
+          className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white font-bold px-6 py-2 rounded-lg hover:shadow-lg transition disabled:opacity-50"
+        >
+          {saving ? 'Guardando...' : 'Guardar'}
+        </button>
+        <button
+          onClick={onCancel}
+          disabled={saving}
+          className="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold px-6 py-2 rounded-lg transition disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export default function EmpleadosPerfilesPage() {
+  const [employees, setEmployees] = useState<EmployeeLaborInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showNew, setShowNew] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase
+      .from('employee_labor_info')
+      .select('*')
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setEmployees(data);
+        setLoading(false);
+      });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleCreate = async (form: typeof emptyForm) => {
+    setSaving(true);
+    setError('');
+    const { data, error: err } = await supabase
+      .from('employee_labor_info')
+      .insert([form])
+      .select()
+      .single();
+    if (err) { setError(err.message); }
+    else {
+      setEmployees(e => [...e, data as EmployeeLaborInfo]);
+      setShowNew(false);
+    }
+    setSaving(false);
+  };
+
+  const handleUpdate = async (id: string, form: typeof emptyForm) => {
+    setSaving(true);
+    setError('');
+    const { error: err } = await supabase
+      .from('employee_labor_info')
+      .update(form)
+      .eq('id', id);
+    if (err) { setError(err.message); }
+    else {
+      setEmployees(e => e.map(emp => emp.id === id ? { ...emp, ...form } : emp));
+      setEditingId(null);
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-mavic-beige">
+      <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
+        <div className="max-w-5xl mx-auto px-4 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Perfiles de Empleadas</h1>
+            <p className="text-white/80 mt-1">Datos laborales para el registro de jornada</p>
+          </div>
+          <Link href="/admin/empleados" className="text-white hover:text-gray-100 font-semibold transition">
+            ← Volver a Horarios
+          </Link>
+        </div>
+      </header>
+
+      <main className="max-w-5xl mx-auto px-4 py-12 space-y-6">
+
+        {/* New employee */}
+        {showNew ? (
+          <div className="bg-white rounded-lg shadow-lg p-6">
+            <h2 className="text-lg font-bold text-mavic-black mb-5">Nueva empleada</h2>
+            <EmployeeForm
+              initial={emptyForm}
+              onSave={handleCreate}
+              onCancel={() => { setShowNew(false); setError(''); }}
+              saving={saving}
+              error={error}
+            />
+          </div>
+        ) : (
+          <div className="flex justify-end">
+            <button
+              onClick={() => setShowNew(true)}
+              className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold px-6 py-2 rounded-lg transition"
+            >
+              + Nueva empleada
+            </button>
+          </div>
+        )}
+
+        {/* Employee list */}
+        {loading ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">Cargando...</div>
+        ) : employees.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
+            No hay empleadas registradas aún.
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {employees.map(emp => (
+              <div key={emp.id} className={`bg-white rounded-lg shadow-lg p-6 ${!emp.is_active ? 'opacity-60' : ''}`}>
+                {editingId === emp.id ? (
+                  <>
+                    <h2 className="text-lg font-bold text-mavic-black mb-5">Editando — {emp.display_name}</h2>
+                    <EmployeeForm
+                      initial={{
+                        display_name: emp.display_name,
+                        nombre_completo: emp.nombre_completo,
+                        nif: emp.nif,
+                        num_afiliacion_ss: emp.num_afiliacion_ss || '',
+                        puesto_trabajo: emp.puesto_trabajo || '',
+                        categoria: emp.categoria || '',
+                        grupo_cotizacion: emp.grupo_cotizacion || '',
+                        fecha_antiguedad: emp.fecha_antiguedad || '',
+                        is_active: emp.is_active,
+                      }}
+                      onSave={form => handleUpdate(emp.id, form)}
+                      onCancel={() => { setEditingId(null); setError(''); }}
+                      saving={saving}
+                      error={error}
+                    />
+                  </>
+                ) : (
+                  <div>
+                    <div className="flex justify-between items-start mb-4">
+                      <div className="flex items-center gap-3">
+                        <h2 className="text-xl font-bold text-mavic-black">{emp.display_name}</h2>
+                        {!emp.is_active && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Inactiva</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => setEditingId(emp.id)}
+                        className="text-sm font-semibold text-mavic-pink hover:text-mavic-pink/70 transition"
+                      >
+                        Editar
+                      </button>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
+                      <div className="md:col-span-2">
+                        <p className="text-xs text-gray-500 uppercase tracking-wide">Nombre para el PDF</p>
+                        <p className="font-semibold text-mavic-black">{emp.nombre_completo}</p>
+                      </div>
+                      {[
+                        { label: 'NIF / NIE', value: emp.nif },
+                        { label: 'Núm. afiliación SS', value: emp.num_afiliacion_ss },
+                        { label: 'Puesto de trabajo', value: emp.puesto_trabajo },
+                        { label: 'Categoría', value: emp.categoria },
+                        { label: 'Grupo de cotización', value: emp.grupo_cotizacion },
+                        { label: 'Fecha de antigüedad', value: emp.fecha_antiguedad },
+                      ].map(({ label, value }) => value ? (
+                        <div key={label}>
+                          <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
+                          <p className="font-medium text-mavic-black">{value}</p>
+                        </div>
+                      ) : null)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </main>
+    </div>
+  );
+}
