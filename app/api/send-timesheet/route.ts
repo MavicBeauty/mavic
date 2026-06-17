@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     from: `Mavic Beauty & Nails <${gmailUser}>`,
     to: gestoriaEmail.split(',').map((e: string) => e.trim()).join(', '),
     subject: `Registro de jornada — ${employeeName} — ${monthName} ${year}`,
-    text: `Adjunto encontrarás el registro de jornada de ${employeeName} correspondiente a ${monthName} ${year}.\n\nFirmado por ambas partes.\n\nMavic Beauty & Nails`,
+    text: `Adjunto encontrarás el registro de jornada de ${employeeName} correspondiente a ${monthName} ${year}.\n\nFirmado por ambas partes.\n\nMavic Beauty & Nails\n\n---\nEste mensaje ha sido generado automáticamente desde el sistema de gestión de Mavic Beauty & Nails.`,
     attachments: [
       {
         filename,
