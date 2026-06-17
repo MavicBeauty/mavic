@@ -335,7 +335,14 @@ export default function Home() {
             <Image src="/mavic-logo.png" alt="Mavic" width={36} height={36} className="opacity-80" />
             <span className="text-sm text-gray-400">Mavic Beauty & Nails · Montcada i Reixac, Barcelona</span>
           </div>
-          <p className="text-gray-500 text-xs">© {new Date().getFullYear()} Mavic Beauty & Nails. {tFooter('rights')}.</p>
+          <div className="flex flex-col items-center md:items-end gap-2">
+            <div className="flex gap-4 text-xs text-gray-500">
+              <Link href={`/${locale}/aviso-legal`} className="hover:text-gray-300 transition">Aviso Legal</Link>
+              <Link href={`/${locale}/privacidad`} className="hover:text-gray-300 transition">Privacidad</Link>
+              <Link href={`/${locale}/cookies`} className="hover:text-gray-300 transition">Cookies</Link>
+            </div>
+            <p className="text-gray-500 text-xs">© {new Date().getFullYear()} Mavic Beauty & Nails. {tFooter('rights')}.</p>
+          </div>
         </div>
       </footer>
     </div>
