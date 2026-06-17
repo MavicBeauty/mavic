@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   await transporter.sendMail({
     from: `Mavic Beauty & Nails <${gmailUser}>`,
-    to: gestoriaEmail,
+    to: gestoriaEmail.split(',').map((e: string) => e.trim()).join(', '),
     subject: `Registro de jornada — ${employeeName} — ${monthName} ${year}`,
     text: `Adjunto encontrarás el registro de jornada de ${employeeName} correspondiente a ${monthName} ${year}.\n\nFirmado por ambas partes.\n\nMavic Beauty & Nails`,
     attachments: [
