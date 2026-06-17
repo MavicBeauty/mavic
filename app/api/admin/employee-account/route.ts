@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
 
   if (!emp) return NextResponse.json({ error: 'Empleada no encontrada' }, { status: 404 });
 
-  const host = req.headers.get('host') || 'mavic-ten.vercel.app';
+  const host = req.headers.get('host') || 'mavicnails.es';
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const redirectTo = `${protocol}://${host}/empleada/set-password`;
 
