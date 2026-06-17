@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRef, useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 function ConsentimientoForm() {
   const searchParams = useSearchParams();
@@ -27,6 +28,29 @@ function ConsentimientoForm() {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
+
+  // Prefill from existing client when launched from the admin panel
+  useEffect(() => {
+    if (!existingClientId) return;
+    const supabase = createClient();
+    supabase
+      .from('clients')
+      .select('name, apellidos, phone, dni, fecha_nacimiento, direccion, poblacion, cp')
+      .eq('id', existingClientId)
+      .single()
+      .then(({ data }: { data: { name: string; apellidos: string; phone: string; dni: string; fecha_nacimiento: string; direccion: string; poblacion: string; cp: string } | null }) => {
+        if (!data) return;
+        setForm({
+          nombre: [data.name, data.apellidos].filter(Boolean).join(' '),
+          dni: data.dni || '',
+          telefono: data.phone || '',
+          fecha_nacimiento: data.fecha_nacimiento ? data.fecha_nacimiento.slice(0, 10) : '',
+          direccion: data.direccion || '',
+          poblacion: data.poblacion || '',
+          cp: data.cp || '',
+        });
+      });
+  }, [existingClientId]);
 
   // Canvas setup
   useEffect(() => {
