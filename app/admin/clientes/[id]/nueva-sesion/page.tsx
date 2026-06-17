@@ -76,9 +76,11 @@ export default function NuevaSesionPage({ params }: { params: { id: string } }) 
     setLoading(true);
     setError('');
     try {
+      const supabase = createClient();
+      const { data: { session: authSession } } = await supabase.auth.getSession();
       const res = await fetch('/api/sessions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authSession?.access_token}` },
         body: JSON.stringify({
           client_id: params.id,
           session_date: sessionDate,

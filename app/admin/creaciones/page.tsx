@@ -2,12 +2,19 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
+import { createClient } from '@/lib/supabase/client';
 
 const BASE = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/nail-gallery`;
 
 interface GalleryFile {
   name: string;
   created_at: string | null;
+}
+
+async function authHeader(): Promise<Record<string, string>> {
+  const supabase = createClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {};
 }
 
 export default function AdminCreacionesPage() {
@@ -20,13 +27,13 @@ export default function AdminCreacionesPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = async () => {
-    const res = await fetch('/api/gallery');
+    const res = await fetch('/api/gallery', { headers: await authHeader() });
     const { files } = await res.json() as { files: string[] };
     setFiles((files ?? []).map((name) => ({ name, created_at: null })));
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(e.target.files ?? []);
@@ -37,7 +44,7 @@ export default function AdminCreacionesPage() {
     const form = new FormData();
     picked.forEach((f) => form.append('files', f));
 
-    const res = await fetch('/api/gallery', { method: 'POST', body: form });
+    const res = await fetch('/api/gallery', { method: 'POST', headers: await authHeader(), body: form });
     const { results } = await res.json() as { results: { name: string; error?: string }[] };
     const ok = results.filter((r) => !r.error).length;
     const fail = results.filter((r) => r.error).length;
@@ -52,7 +59,7 @@ export default function AdminCreacionesPage() {
   const handleDelete = async (filename: string) => {
     if (!confirm(`¿Eliminar "${filename}"?`)) return;
     setDeleting(filename);
-    await fetch(`/api/gallery/${encodeURIComponent(filename)}`, { method: 'DELETE' });
+    await fetch(`/api/gallery/${encodeURIComponent(filename)}`, { method: 'DELETE', headers: await authHeader() });
     setFiles((prev) => prev.filter((f) => f.name !== filename));
     setDeleting(null);
   };

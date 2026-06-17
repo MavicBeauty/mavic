@@ -169,7 +169,9 @@ export default function ClientProfilePage({ params }: { params: { id: string } }
   const handleDeleteSession = async (sessionId: string, sessionDate: string) => {
     if (!confirm(`¿Eliminar la sesión del ${new Date(sessionDate).toLocaleDateString('es-ES')}? Esta acción no se puede deshacer.`)) return;
     setDeletingSession(sessionId);
-    const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE' });
+    const supabase = createClient();
+    const { data: { session: authSession } } = await supabase.auth.getSession();
+    const res = await fetch(`/api/sessions/${sessionId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${authSession?.access_token}` } });
     if (res.ok) {
       setSessions(s => s.filter(sess => sess.id !== sessionId));
     }

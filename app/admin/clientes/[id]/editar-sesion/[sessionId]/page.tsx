@@ -84,9 +84,11 @@ export default function EditarSesionPage({
     setLoading(true);
     setError('');
     try {
+      const supabase = createClient();
+      const { data: { session: authSession } } = await supabase.auth.getSession();
       const res = await fetch(`/api/sessions/${params.sessionId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authSession?.access_token}` },
         body: JSON.stringify({
           session_date: sessionDate,
           zones: filledZones,

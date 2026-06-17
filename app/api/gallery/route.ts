@@ -1,5 +1,20 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+const admin = createAdminClient();
+
+const ALLOWED_MIME = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+async function verifyAdmin(req: NextRequest) {
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  if (!token) return null;
+  const { data: { user } } = await admin.auth.getUser(token);
+  if (!user) return null;
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  if (!profile || !['owner', 'employee'].includes(profile.role as string)) return null;
+  return user;
+}
 
 function adminClient() {
   return createClient(
@@ -8,7 +23,9 @@ function adminClient() {
   );
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!await verifyAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   const supabase = adminClient();
   const { data, error } = await supabase.storage
     .from('nail-gallery')
@@ -20,7 +37,9 @@ export async function GET() {
   return NextResponse.json({ files });
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  if (!await verifyAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   const formData = await req.formData();
   const files = formData.getAll('files') as File[];
   if (!files.length) return NextResponse.json({ error: 'No files' }, { status: 400 });
@@ -29,6 +48,10 @@ export async function POST(req: Request) {
   const results: { name: string; error?: string }[] = [];
 
   for (const file of files) {
+    if (!ALLOWED_MIME.includes(file.type)) {
+      results.push({ name: file.name, error: 'Tipo de archivo no permitido' });
+      continue;
+    }
     const ext = file.name.split('.').pop() ?? 'jpg';
     const filename = `u${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     const { error } = await supabase.storage

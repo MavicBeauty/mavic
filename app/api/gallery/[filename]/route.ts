@@ -1,5 +1,18 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+const admin = createAdminClient();
+
+async function verifyAdmin(req: NextRequest) {
+  const token = req.headers.get('Authorization')?.replace('Bearer ', '');
+  if (!token) return null;
+  const { data: { user } } = await admin.auth.getUser(token);
+  if (!user) return null;
+  const { data: profile } = await admin.from('profiles').select('role').eq('id', user.id).single();
+  if (!profile || !['owner', 'employee'].includes(profile.role as string)) return null;
+  return user;
+}
 
 function adminClient() {
   return createClient(
@@ -9,9 +22,11 @@ function adminClient() {
 }
 
 export async function DELETE(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: { filename: string } }
 ) {
+  if (!await verifyAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   const supabase = adminClient();
   const { error } = await supabase.storage
     .from('nail-gallery')
