@@ -1,21 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
 
 export default function EmpleadasHubPage() {
-  const supabase = createClient();
-  const [pendingNominas, setPendingNominas] = useState(0);
-
-  useEffect(() => {
-    supabase
-      .from('nominas')
-      .select('id', { count: 'exact', head: true })
-      .eq('paid', false)
-      .then(({ count }: { count: number | null }) => setPendingNominas(count ?? 0));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   const sections = [
     {
       href: '/admin/empleados',
@@ -37,7 +24,7 @@ export default function EmpleadasHubPage() {
       ),
       title: 'Nóminas',
       desc: 'Subir nóminas de la gestoría, marcar como pagadas y consultar historial.',
-      badge: pendingNominas > 0 ? `${pendingNominas} pendiente${pendingNominas > 1 ? 's' : ''}` : null,
+      badge: null,
     },
     {
       href: '/admin/empleados/perfiles',
