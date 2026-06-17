@@ -13,6 +13,7 @@ export default function EmpleadaDashboardPage() {
   const [pw2, setPw2] = useState('');
   const [pwLoading, setPwLoading] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
+  const [pendingNominas, setPendingNominas] = useState(0);
 
   const supabase = createClient();
 
@@ -21,10 +22,21 @@ export default function EmpleadaDashboardPage() {
       if (!session) return;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('name')
+        .select('name, employee_labor_info_id')
         .eq('id', session.user.id)
         .single();
-      if (profile) setName(profile.name as string);
+      if (profile) {
+        setName((profile as { name: string; employee_labor_info_id: string | null }).name);
+        const laborId = (profile as { name: string; employee_labor_info_id: string | null }).employee_labor_info_id;
+        if (laborId) {
+          const { count } = await supabase
+            .from('nominas')
+            .select('id', { count: 'exact', head: true })
+            .eq('employee_id', laborId)
+            .eq('paid', false);
+          setPendingNominas(count ?? 0);
+        }
+      }
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -90,19 +102,36 @@ export default function EmpleadaDashboardPage() {
           </div>
         </Link>
 
-        <div className="block bg-white rounded-2xl shadow p-6 opacity-40 cursor-not-allowed select-none">
+        <Link
+          href="/empleada/nominas"
+          className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
+        >
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center">
-              <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="w-12 h-12 rounded-full bg-mavic-pink/10 flex items-center justify-center">
+              <svg className="w-6 h-6 text-mavic-pink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-mavic-black">Nóminas</h2>
-              <p className="text-gray-500 text-sm">Próximamente</p>
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-mavic-black group-hover:text-mavic-pink transition">
+                Nóminas
+              </h2>
+              <p className="text-gray-500 text-sm">
+                {pendingNominas > 0
+                  ? `${pendingNominas} pendiente${pendingNominas > 1 ? 's' : ''} de pago`
+                  : 'Consulta y descarga tus nóminas'}
+              </p>
+            </div>
+            {pendingNominas > 0 && (
+              <span className="flex-shrink-0 w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-bold flex items-center justify-center">
+                {pendingNominas}
+              </span>
+            )}
+            <div className="ml-auto text-gray-300 group-hover:text-mavic-pink transition text-xl font-light">
+              →
             </div>
           </div>
-        </div>
+        </Link>
 
         {/* Password change */}
         <div className="bg-white rounded-2xl shadow p-6">

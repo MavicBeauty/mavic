@@ -28,8 +28,7 @@ export default function DashboardPage() {
     { href: '/admin/creaciones',     icon: '🖼️', title: 'Nuestras Creaciones', desc: 'Subir y eliminar fotos de la galería pública.' },
     { href: '/admin/ofertas',        icon: '📢', title: 'Ventana Emergente',   desc: 'Configura el anuncio que aparece al entrar al sitio web.' },
     { href: '/admin/tarjetas-regalo',icon: '🎫', title: 'Tarjetas Regalo',     desc: 'Revisar solicitudes, añadir código Booksy y enviar a clientes.' },
-    { href: '/admin/empleados',      icon: '📊', title: 'Control de Horarios',           desc: 'Registro diario de horas trabajadas por empleado.' },
-    { href: '/admin/empleados/perfiles', icon: '👤', title: 'Perfiles de Empleadas', desc: 'Datos laborales, cuentas del portal y permisos de acceso.' },
+    { href: '/admin/empleadas',      icon: '👥', title: 'Empleadas',               desc: 'Control de horarios, nóminas, perfiles y permisos de acceso.' },
   ];
 
   return (

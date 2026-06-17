@@ -281,8 +281,8 @@ export default function EmpleadosPerfilesPage() {
             <h1 className="text-3xl font-bold">Perfiles de Empleadas</h1>
             <p className="text-white/80 mt-1">Datos laborales para el registro de jornada</p>
           </div>
-          <Link href="/admin/empleados" className="text-white hover:text-gray-100 font-semibold transition">
-            ← Volver a Horarios
+          <Link href="/admin/empleadas" className="text-white hover:text-gray-100 font-semibold transition">
+            ← Volver
           </Link>
         </div>
       </header>
