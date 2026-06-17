@@ -82,8 +82,8 @@
   "contact": {
     "findUs": "Encuéntranos",
     "hours": "Horario",
-    "weekdays": "Lunes — Viernes: 9:00 — 20:30",
-    "saturdays": "Sábados: 10:00 — 14:00",
+    "weekdays": "Lunes — Viernes: 10:00 — 14:00 y 15:00 — 21:00",
+    "saturdays": "Sábados: 10:00 — 13:00",
     "addressLabel": "Dirección",
     "address": "Plaça de l'Església, 11",
     "city": "08110 Montcada i Reixac, Barcelona",
@@ -91,7 +91,7 @@
     "whatsappBtn": "Escríbenos por WhatsApp",
     "instagram": "@mavicnailscenter",
     "booksyBtn": "Reservar cita en Booksy",
-    "hoursDetail": "L-V 9:00 a 20:30 | S 10:00 a 14:00",
+    "hoursDetail": "L-V 10:00-14:00 y 15:00-21:00 | S 10:00-13:00",
     "whatsapp": "Contactar por WhatsApp",
     "booksy": "Ver citas en Booksy"
   },
@@ -99,7 +99,7 @@
     "address": "Plaça de l'Església, 11, 08110 Montcada i Reixac, Barcelona",
     "phone": "+34 643 59 19 84",
     "instagram": "@mavicnailscenter",
-    "hours": "L-V 9:00-20:30 | S 10:00-14:00",
+    "hours": "L-V 10:00-14:00 y 15:00-21:00 | S 10:00-13:00",
     "rights": "Todos los derechos reservados"
   },
   "serviciosPage": {
