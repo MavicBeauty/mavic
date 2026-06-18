@@ -69,6 +69,7 @@ export default function EmpleadaHorarioPage() {
   const [showSignPad, setShowSignPad] = useState(false);
   const [sigWorking, setSigWorking] = useState(false);
   const [sigMsg, setSigMsg] = useState('');
+  const [changeRequestedAt, setChangeRequestedAt] = useState<string | null>(null);
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -106,19 +107,21 @@ export default function EmpleadaHorarioPage() {
     if (!displayName) return;
     const { data } = await supabase
       .from('timesheets')
-      .select('day_entries, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
+      .select('day_entries, change_requested_at, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
       .eq('employee_name', displayName)
       .eq('period_month', month)
       .eq('period_year', year)
       .single();
     const row = data as {
       day_entries: DayEntry[];
+      change_requested_at: string | null;
       employee_signature_path: string | null;
       employer_signature_path: string | null;
       employee_signed_at: string | null;
       employer_signed_at: string | null;
     } | null;
     setDays(row?.day_entries ?? emptyDays());
+    setChangeRequestedAt(row?.change_requested_at ?? null);
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -230,6 +233,35 @@ export default function EmpleadaHorarioPage() {
     setTimeout(() => setSigMsg(''), 3000);
   };
 
+  const handleUnsignForChange = async () => {
+    if (!profile || !displayName || !sigState.employee_signature_path) return;
+    setSigWorking(true);
+    setSigMsg('');
+
+    await supabase.storage.from('signatures').remove([sigState.employee_signature_path]);
+
+    const { data: updated, error } = await supabase.from('timesheets').update({
+      employee_signature_path: null,
+      employee_signed_at: null,
+      change_requested_at: null,
+    }).eq('employee_name', displayName)
+      .eq('period_month', month)
+      .eq('period_year', year)
+      .select('id');
+
+    if (error || !updated?.length) {
+      setSigMsg('Error al retirar la firma. Sin permiso.');
+      setSigWorking(false);
+      return;
+    }
+
+    setSigState(s => ({ ...s, employee_signature_path: null, employee_signed_at: null }));
+    setChangeRequestedAt(null);
+    setSigMsg('Firma retirada — la empresa puede realizar las correcciones');
+    setSigWorking(false);
+    setTimeout(() => setSigMsg(''), 5000);
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-mavic-beige flex items-center justify-center">
@@ -271,6 +303,27 @@ export default function EmpleadaHorarioPage() {
           </div>
         </div>
       </header>
+
+      {changeRequestedAt && (
+        <div className="bg-orange-50 border-b-2 border-orange-300 px-4 py-4">
+          <div className="max-w-5xl mx-auto flex items-center gap-4 flex-wrap">
+            <div className="flex items-start gap-2 flex-1 min-w-0">
+              <span className="text-lg flex-shrink-0">⚠️</span>
+              <div>
+                <p className="text-sm font-bold text-orange-800">La empresa ha solicitado modificaciones en este registro</p>
+                <p className="text-xs text-orange-700 mt-0.5">Retira tu firma para permitir los cambios. Podrás volver a firmar una vez revisado.</p>
+              </div>
+            </div>
+            <button
+              onClick={handleUnsignForChange}
+              disabled={sigWorking}
+              className="flex-shrink-0 px-4 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition disabled:opacity-50"
+            >
+              {sigWorking ? 'Procesando...' : 'Retirar mi firma'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Controls */}

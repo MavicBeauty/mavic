@@ -33,6 +33,15 @@ interface EmployeeLaborInfo {
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+const EMPLOYEE_COLORS = [
+  { borderL: 'border-l-rose-400',   dot: 'bg-rose-400'   },
+  { borderL: 'border-l-violet-400', dot: 'bg-violet-400' },
+  { borderL: 'border-l-sky-400',    dot: 'bg-sky-400'    },
+  { borderL: 'border-l-teal-400',   dot: 'bg-teal-400'   },
+  { borderL: 'border-l-amber-500',  dot: 'bg-amber-500'  },
+  { borderL: 'border-l-indigo-400', dot: 'bg-indigo-400' },
+] as const;
+
 
 function emptyDays(): DayEntry[] {
   return Array.from({ length: 31 }, (_, i) => ({
@@ -60,6 +69,12 @@ export default function EmpleadosPage() {
   const [gestoriaTargets, setGestoriaTargets] = useState<string[]>([]);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [expandedExtraRows, setExpandedExtraRows] = useState<Set<number>>(new Set());
+  const [fading, setFading] = useState(false);
+  const [showSignWarning, setShowSignWarning] = useState(false);
+  const [gestoriaSentAt, setGestoriaSentAt] = useState<string | null>(null);
+  const [changeRequestedAt, setChangeRequestedAt] = useState<string | null>(null);
+  const [showChangeRequestWarning, setShowChangeRequestWarning] = useState(false);
+  const [requestingChange, setRequestingChange] = useState(false);
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -81,18 +96,23 @@ export default function EmpleadosPage() {
 
   const load = useCallback(async () => {
     if (!employee) return;
+    setFading(true);
+    await new Promise<void>(resolve => setTimeout(resolve, 120));
     const { data } = await supabase
       .from('timesheets')
-      .select('day_entries, observations, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
+      .select('day_entries, observations, gestoria_sent_at, change_requested_at, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
       .eq('employee_name', employee)
       .eq('period_month', month)
       .eq('period_year', year)
       .single();
-    const row = data as { day_entries: DayEntry[]; observations: string | null; employee_signature_path: string | null; employer_signature_path: string | null; employee_signed_at: string | null; employer_signed_at: string | null } | null;
+    const row = data as { day_entries: DayEntry[]; observations: string | null; gestoria_sent_at: string | null; change_requested_at: string | null; employee_signature_path: string | null; employer_signature_path: string | null; employee_signed_at: string | null; employer_signed_at: string | null } | null;
     const loaded = row?.day_entries ?? emptyDays();
     setDays(loaded);
     setObservations(row?.observations ?? '');
     setExpandedExtraRows(new Set(loaded.filter((d: DayEntry) => d.ent_comp || d.sal_comp).map((d: DayEntry) => d.day)));
+    setGestoriaSentAt(row?.gestoria_sent_at ?? null);
+    setChangeRequestedAt(row?.change_requested_at ?? null);
+    setFading(false);
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -122,6 +142,8 @@ export default function EmpleadosPage() {
 
   const totalHours = days.filter((d) => d.day <= daysInMonth).reduce((s, d) => s + calcDailyHours(d), 0);
   const bothSigned = !!(sigState.employee_signature_path && sigState.employer_signature_path);
+  const empIdx = employees.findIndex(e => e.display_name === employee);
+  const empColor = EMPLOYEE_COLORS[Math.max(0, empIdx) % EMPLOYEE_COLORS.length];
   // expectedHours will be derived from weekly_hours once the formula is decided
   const expectedHours = null as number | null;
   const extraHours = null as number | null;
@@ -262,6 +284,10 @@ export default function EmpleadosPage() {
       if (json.error) {
         setSendMsg(`Error: ${json.error}`);
       } else {
+        const sentAt = new Date().toISOString();
+        await supabase.from('timesheets').update({ gestoria_sent_at: sentAt })
+          .eq('employee_name', employee).eq('period_month', month).eq('period_year', year);
+        setGestoriaSentAt(sentAt);
         setSendMsg('✓ Enviado a la gestoría');
         setTimeout(() => setSendMsg(''), 5000);
       }
@@ -270,6 +296,15 @@ export default function EmpleadosPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleRequestChange = async () => {
+    setRequestingChange(true);
+    const requestedAt = new Date().toISOString();
+    await supabase.from('timesheets').update({ change_requested_at: requestedAt })
+      .eq('employee_name', employee).eq('period_month', month).eq('period_year', year);
+    setChangeRequestedAt(requestedAt);
+    setRequestingChange(false);
   };
 
   const handleGestoriaClick = async () => {
@@ -330,6 +365,72 @@ export default function EmpleadosPage() {
         />
       )}
 
+      {showSignWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <h3 className="text-base font-bold text-mavic-black mb-1">Confirmar firma</h3>
+                <p className="text-sm text-gray-600">
+                  Una vez que ambas partes hayan firmado, <strong>no se podrán realizar más cambios</strong> en este registro.
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Asegúrate de que todos los datos son correctos antes de continuar.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowSignWarning(false); setShowSignPad(true); }}
+                className="flex-1 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition"
+              >
+                Continuar y firmar
+              </button>
+              <button
+                onClick={() => setShowSignWarning(false)}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showChangeRequestWarning && gestoriaSentAt && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-2xl flex-shrink-0">⚠️</span>
+              <div>
+                <h3 className="text-base font-bold text-mavic-black mb-1">La gestoría ya tiene este archivo</h3>
+                <p className="text-sm text-gray-600">
+                  Este registro fue enviado a la gestoría el <strong>{fmtTs(gestoriaSentAt)}</strong>.
+                </p>
+                <p className="text-sm text-gray-600 mt-2">
+                  Si solicitas cambios y corriges el registro, tendrás que volver a enviar el PDF.
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setShowChangeRequestWarning(false); handleRequestChange(); }}
+                className="flex-1 px-4 py-2 text-sm font-bold text-white bg-orange-600 hover:bg-orange-700 rounded-lg transition"
+              >
+                Solicitar cambios igualmente
+              </button>
+              <button
+                onClick={() => setShowChangeRequestWarning(false)}
+                className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
           <div>
@@ -345,7 +446,10 @@ export default function EmpleadosPage() {
         <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
           <div className="grid md:grid-cols-5 gap-4 items-end">
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Empleada</label>
+              <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                {empIdx >= 0 && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${empColor.dot}`} />}
+                Empleada
+              </label>
               <select value={employee} onChange={(e) => setEmployee(e.target.value)}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
                 disabled={employees.length === 0}>
@@ -389,29 +493,17 @@ export default function EmpleadosPage() {
           </div>
         </div>
 
+        {/* Content area — fades on employee/month change */}
+        <div className={`transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
+
         {/* Stats */}
-        <div className="grid md:grid-cols-2 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow">
+        <div className="mb-8">
+          <div className={`bg-white p-6 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
             <p className="text-gray-600 text-sm font-semibold mb-2">HORAS TRABAJADAS</p>
             <p className="text-3xl font-bold text-mavic-pink">{totalHours.toFixed(1)}</p>
             <p className="text-gray-500 text-xs mt-2">
               {expectedHours != null ? `de ${expectedHours.toFixed(1)} esperadas` : 'horas este mes'}
             </p>
-          </div>
-          <div className="bg-white p-6 rounded-lg shadow">
-            <p className="text-gray-600 text-sm font-semibold mb-2">HORAS EXTRAS</p>
-            <p className="text-3xl font-bold text-mavic-gold">
-              {extraHours != null ? extraHours.toFixed(1) : '—'}
-            </p>
-            {expectedHours != null && (
-              <p className="text-gray-500 text-xs mt-2">
-                {totalHours < expectedHours
-                  ? `faltan ${(expectedHours - totalHours).toFixed(1)}h`
-                  : totalHours === expectedHours
-                  ? 'completo ✓'
-                  : `+${extraHours!.toFixed(1)}h sobre lo esperado`}
-              </p>
-            )}
           </div>
         </div>
 
@@ -479,7 +571,7 @@ export default function EmpleadosPage() {
             )}
             {!sigState.employer_signature_path && (
               <button
-                onClick={() => setShowSignPad(true)}
+                onClick={() => setShowSignWarning(true)}
                 disabled={sigWorking || !sigState.employee_signature_path}
                 title={!sigState.employee_signature_path ? 'La empleada debe firmar primero' : undefined}
                 className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-40"
@@ -496,13 +588,30 @@ export default function EmpleadosPage() {
                 {sending ? 'Enviando...' : loadingTargets ? 'Cargando...' : 'Enviar a gestoría'}
               </button>
             )}
+            {bothSigned && !changeRequestedAt && (
+              <button
+                onClick={() => gestoriaSentAt ? setShowChangeRequestWarning(true) : handleRequestChange()}
+                disabled={requestingChange}
+                className="px-5 py-2 text-sm font-bold text-orange-700 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-lg transition disabled:opacity-40"
+              >
+                {requestingChange ? 'Enviando...' : 'Solicitar cambios'}
+              </button>
+            )}
+            {bothSigned && changeRequestedAt && (
+              <span className="text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-3 py-2 rounded-lg">
+                Solicitud enviada — esperando que la empleada retire su firma
+              </span>
+            )}
           </div>
         </div>
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
           <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 flex items-center justify-between gap-4">
-            <h3 className="text-lg font-bold text-mavic-black">{MONTHS[month - 1]} {year} — {employee}</h3>
+            <h3 className="text-lg font-bold text-mavic-black flex items-center gap-2">
+              {empIdx >= 0 && <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${empColor.dot}`} />}
+              {MONTHS[month - 1]} {year} — {employee}
+            </h3>
             {bothSigned && (
               <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
                 Bloqueado — ambas partes han firmado
@@ -660,6 +769,8 @@ export default function EmpleadosPage() {
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
+
+        </div> {/* end fade wrapper */}
       </main>
     </div>
   );
