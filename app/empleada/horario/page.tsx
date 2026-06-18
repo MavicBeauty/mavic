@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { generateTimesheetPDF } from '@/lib/timesheet-pdf';
 import SignaturePad from '@/components/SignaturePad';
 
 interface DayEntry {
@@ -11,6 +12,21 @@ interface DayEntry {
   entry2: string; exit2: string;
   absence: 'none' | 'morning' | 'afternoon' | 'all';
   notes: string;
+  ent_comp?: string;
+  sal_comp?: string;
+}
+
+interface EmployeeLaborInfo {
+  id: string;
+  display_name: string;
+  nombre_completo: string;
+  nif: string;
+  num_afiliacion_ss?: string;
+  puesto_trabajo?: string;
+  categoria?: string;
+  grupo_cotizacion?: string;
+  fecha_antiguedad?: string;
+  weekly_hours?: number | null;
 }
 
 interface EmployeeProfile {
@@ -30,6 +46,15 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 const DOW_LETTER = ['D','L','M','X','J','V','S'];
 const ABSENCE_LABELS: Record<string, string> = { morning: 'Mañana', afternoon: 'Tarde', all: 'Todo el día' };
 
+const EMPLOYEE_COLORS = [
+  { borderL: 'border-l-rose-400',   dot: 'bg-rose-400'   },
+  { borderL: 'border-l-violet-400', dot: 'bg-violet-400' },
+  { borderL: 'border-l-sky-400',    dot: 'bg-sky-400'    },
+  { borderL: 'border-l-teal-400',   dot: 'bg-teal-400'   },
+  { borderL: 'border-l-amber-500',  dot: 'bg-amber-500'  },
+  { borderL: 'border-l-indigo-400', dot: 'bg-indigo-400' },
+] as const;
+
 function emptyDays(): DayEntry[] {
   return Array.from({ length: 31 }, (_, i) => ({
     day: i + 1, entry1: '', exit1: '', entry2: '', exit2: '', absence: 'none', notes: '',
@@ -45,6 +70,11 @@ function calcDailyHours(d: DayEntry): number {
     const [h3, m3] = d.entry2.split(':').map(Number);
     const [h4, m4] = d.exit2.split(':').map(Number);
     h += h4 - h3 + (m4 - m3) / 60;
+  }
+  if (d.ent_comp && d.sal_comp) {
+    const [h5, m5] = d.ent_comp.split(':').map(Number);
+    const [h6, m6] = d.sal_comp.split(':').map(Number);
+    h += h6 - h5 + (m6 - m5) / 60;
   }
   return Math.max(0, h);
 }
@@ -70,6 +100,10 @@ export default function EmpleadaHorarioPage() {
   const [sigWorking, setSigWorking] = useState(false);
   const [sigMsg, setSigMsg] = useState('');
   const [changeRequestedAt, setChangeRequestedAt] = useState<string | null>(null);
+  const [laborInfo, setLaborInfo] = useState<EmployeeLaborInfo | null>(null);
+  const [observations, setObservations] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [fading, setFading] = useState(false);
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -80,8 +114,9 @@ export default function EmpleadaHorarioPage() {
 
   const isSigned = !!sigState.employee_signature_path;
   const employerSigned = !!sigState.employer_signature_path;
-  // Lock editing once the employee has signed
   const canEdit = profile?.timesheet_permission === 'edit' && !isSigned;
+  const empColorIdx = laborInfo ? parseInt(laborInfo.id[0], 16) % EMPLOYEE_COLORS.length : 0;
+  const empColor = EMPLOYEE_COLORS[empColorIdx];
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -95,25 +130,31 @@ export default function EmpleadaHorarioPage() {
       setProfile(prof as EmployeeProfile);
       const { data: labor } = await supabase
         .from('employee_labor_info')
-        .select('display_name')
+        .select('*')
         .eq('id', (prof as EmployeeProfile).employee_labor_info_id)
         .single();
-      if (labor) setDisplayName((labor as { display_name: string }).display_name);
+      if (labor) {
+        setDisplayName((labor as EmployeeLaborInfo).display_name);
+        setLaborInfo(labor as EmployeeLaborInfo);
+      }
       setLoading(false);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     if (!displayName) return;
+    setFading(true);
+    await new Promise<void>(resolve => setTimeout(resolve, 120));
     const { data } = await supabase
       .from('timesheets')
-      .select('day_entries, change_requested_at, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
+      .select('day_entries, observations, change_requested_at, employee_signature_path, employer_signature_path, employee_signed_at, employer_signed_at')
       .eq('employee_name', displayName)
       .eq('period_month', month)
       .eq('period_year', year)
       .single();
     const row = data as {
       day_entries: DayEntry[];
+      observations: string | null;
       change_requested_at: string | null;
       employee_signature_path: string | null;
       employer_signature_path: string | null;
@@ -121,7 +162,9 @@ export default function EmpleadaHorarioPage() {
       employer_signed_at: string | null;
     } | null;
     setDays(row?.day_entries ?? emptyDays());
+    setObservations(row?.observations ?? '');
     setChangeRequestedAt(row?.change_requested_at ?? null);
+    setFading(false);
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -231,6 +274,41 @@ export default function EmpleadaHorarioPage() {
     setSigMsg('Firma anulada');
     setSigWorking(false);
     setTimeout(() => setSigMsg(''), 3000);
+  };
+
+  const downloadSig = async (path: string): Promise<Uint8Array | undefined> => {
+    const { data } = await supabase.storage.from('signatures').download(path);
+    if (!data) return undefined;
+    const buf = await data.arrayBuffer();
+    return new Uint8Array(buf);
+  };
+
+  const handleGeneratePdf = async () => {
+    if (!laborInfo) return;
+    setGeneratingPdf(true);
+    try {
+      const [empSig, emplrSig] = await Promise.all([
+        sigState.employee_signature_path ? downloadSig(sigState.employee_signature_path) : Promise.resolve(undefined),
+        sigState.employer_signature_path ? downloadSig(sigState.employer_signature_path) : Promise.resolve(undefined),
+      ]);
+      const pdfBytes = await generateTimesheetPDF({
+        employee: laborInfo, month, year, days, totalHours,
+        observations: observations || undefined,
+        employeeSignature: empSig,
+        employerSignature: emplrSig,
+        employeeSignedAt: sigState.employee_signed_at ?? undefined,
+        employerSignedAt: sigState.employer_signed_at ?? undefined,
+      });
+      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `registro_jornada_${displayName.toLowerCase().replace(/\s+/g, '_')}_${String(month).padStart(2,'0')}_${year}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      setGeneratingPdf(false);
+    }
   };
 
   const handleUnsignForChange = async () => {
@@ -358,6 +436,13 @@ export default function EmpleadaHorarioPage() {
                   {saveMsg}
                 </span>
               )}
+              <button
+                onClick={handleGeneratePdf}
+                disabled={generatingPdf || !laborInfo}
+                className="bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition"
+              >
+                {generatingPdf ? 'Generando...' : 'Descargar PDF'}
+              </button>
               {canEdit && (
                 <>
                   <button
@@ -469,14 +554,17 @@ export default function EmpleadaHorarioPage() {
           </div>
         </div>
 
+        {/* Fading content area */}
+        <div className={`transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
+
         {/* Stats */}
         <div className="grid grid-cols-2 gap-4 mb-5">
-          <div className="bg-white p-4 rounded-lg shadow">
+          <div className={`bg-white p-4 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
             <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Horas trabajadas</p>
             <p className="text-3xl font-bold text-mavic-pink">{totalHours.toFixed(1)}</p>
             <p className="text-xs text-gray-400 mt-1">{MONTHS[month - 1]} {year}</p>
           </div>
-          <div className="bg-white p-4 rounded-lg shadow">
+          <div className={`bg-white p-4 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
             <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Estado</p>
             <p className="text-lg font-bold text-mavic-black">{profile?.name}</p>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 inline-block ${
@@ -573,6 +661,8 @@ export default function EmpleadaHorarioPage() {
             </table>
           </div>
         </div>
+
+        </div> {/* end fade wrapper */}
       </main>
     </div>
   );

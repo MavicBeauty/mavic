@@ -137,6 +137,11 @@ export default function EmpleadosPage() {
       const [h4, m4] = d.exit2.split(':').map(Number);
       h += h4 - h3 + (m4 - m3) / 60;
     }
+    if (d.ent_comp && d.sal_comp) {
+      const [h5, m5] = d.ent_comp.split(':').map(Number);
+      const [h6, m6] = d.sal_comp.split(':').map(Number);
+      h += h6 - h5 + (m6 - m5) / 60;
+    }
     return Math.max(0, h);
   };
 
@@ -390,7 +395,7 @@ export default function EmpleadosPage() {
               <div>
                 <h3 className="text-base font-bold text-mavic-black mb-1">Confirmar firma</h3>
                 <p className="text-sm text-gray-600">
-                  Una vez que ambas partes hayan firmado, <strong>no se podrán realizar más cambios</strong> en este registro.
+                  En cuanto la empleada firme, el registro quedará <strong>bloqueado para edición</strong>. Si ya ha firmado, al confirmar aquí ya no se podrán hacer cambios.
                 </p>
                 <p className="text-xs text-gray-400 mt-2">
                   Asegúrate de que todos los datos son correctos antes de continuar.
@@ -614,7 +619,7 @@ export default function EmpleadosPage() {
                 {sending ? 'Enviando...' : loadingTargets ? 'Cargando...' : 'Enviar a gestoría'}
               </button>
             )}
-            {bothSigned && !changeRequestedAt && (
+            {isLocked && !changeRequestedAt && (
               <button
                 onClick={() => gestoriaSentAt ? setShowChangeRequestWarning(true) : handleRequestChange()}
                 disabled={requestingChange}
@@ -623,7 +628,7 @@ export default function EmpleadosPage() {
                 {requestingChange ? 'Enviando...' : 'Solicitar cambios'}
               </button>
             )}
-            {bothSigned && changeRequestedAt && (
+            {isLocked && changeRequestedAt && (
               <span className="text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-3 py-2 rounded-lg">
                 Solicitud enviada — esperando que la empleada retire su firma
               </span>

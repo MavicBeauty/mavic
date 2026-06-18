@@ -83,6 +83,11 @@ function calcDailyHours(d: DayEntry): number {
     const [h4, m4] = d.exit2.split(':').map(Number);
     h += h4 - h3 + (m4 - m3) / 60;
   }
+  if (d.ent_comp && d.sal_comp) {
+    const [h5, m5] = d.ent_comp.split(':').map(Number);
+    const [h6, m6] = d.sal_comp.split(':').map(Number);
+    h += h6 - h5 + (m6 - m5) / 60;
+  }
   return Math.max(0, h);
 }
 
