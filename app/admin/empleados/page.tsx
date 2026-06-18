@@ -70,7 +70,7 @@ export default function EmpleadosPage() {
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [expandedExtraRows, setExpandedExtraRows] = useState<Set<number>>(new Set());
   const [fading, setFading] = useState(false);
-  const [showSignWarning, setShowSignWarning] = useState(false);
+
   const [gestoriaSentAt, setGestoriaSentAt] = useState<string | null>(null);
   const [changeRequestedAt, setChangeRequestedAt] = useState<string | null>(null);
   const [showChangeRequestWarning, setShowChangeRequestWarning] = useState(false);
@@ -382,42 +382,10 @@ export default function EmpleadosPage() {
         <SignaturePad
           title="Firmar como empresa"
           subtitle={`${MONTHS[month - 1]} ${year} — ${employee}`}
+          notice="En cuanto la empleada firme, el registro quedará bloqueado para edición. Si ya ha firmado, al confirmar aquí ya no se podrán hacer cambios. Asegúrate de que todos los datos son correctos antes de continuar."
           onConfirm={handleEmployerSign}
           onCancel={() => setShowSignPad(false)}
         />
-      )}
-
-      {showSignWarning && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
-            <div className="flex items-start gap-3 mb-4">
-              <span className="text-2xl">⚠️</span>
-              <div>
-                <h3 className="text-base font-bold text-mavic-black mb-1">Confirmar firma</h3>
-                <p className="text-sm text-gray-600">
-                  En cuanto la empleada firme, el registro quedará <strong>bloqueado para edición</strong>. Si ya ha firmado, al confirmar aquí ya no se podrán hacer cambios.
-                </p>
-                <p className="text-xs text-gray-400 mt-2">
-                  Asegúrate de que todos los datos son correctos antes de continuar.
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => { setShowSignWarning(false); setShowSignPad(true); }}
-                className="flex-1 px-4 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition"
-              >
-                Continuar y firmar
-              </button>
-              <button
-                onClick={() => setShowSignWarning(false)}
-                className="flex-1 px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
-              >
-                Cancelar
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {showChangeRequestWarning && gestoriaSentAt && (
@@ -593,7 +561,7 @@ export default function EmpleadosPage() {
             )}
             {!sigState.employer_signature_path && (
               <button
-                onClick={() => setShowSignWarning(true)}
+                onClick={() => setShowSignPad(true)}
                 disabled={sigWorking || !sigState.employee_signature_path}
                 title={!sigState.employee_signature_path ? 'La empleada debe firmar primero' : undefined}
                 className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-40"

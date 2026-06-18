@@ -5,11 +5,12 @@ import { useRef, useState, useEffect } from 'react';
 interface Props {
   title?: string;
   subtitle?: string;
+  notice?: string;
   onConfirm: (dataUrl: string) => void;
   onCancel: () => void;
 }
 
-export default function SignaturePad({ title = 'Firma', subtitle = 'Dibuja tu firma en el recuadro', onConfirm, onCancel }: Props) {
+export default function SignaturePad({ title = 'Firma', subtitle = 'Dibuja tu firma en el recuadro', notice, onConfirm, onCancel }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [drawing, setDrawing] = useState(false);
   const [isEmpty, setIsEmpty] = useState(true);
@@ -81,6 +82,12 @@ export default function SignaturePad({ title = 'Firma', subtitle = 'Dibuja tu fi
           <h2 className="text-lg font-bold text-mavic-black">{title}</h2>
           <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>
         </div>
+
+        {notice && (
+          <div className="mx-4 mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-800 leading-relaxed">
+            {notice}
+          </div>
+        )}
 
         <div className="p-4">
           <canvas

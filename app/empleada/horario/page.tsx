@@ -354,6 +354,7 @@ export default function EmpleadaHorarioPage() {
         <SignaturePad
           title="Firmar registro mensual"
           subtitle={`${MONTHS[month - 1]} ${year} — Dibuja tu firma para confirmar el registro`}
+          notice="Firma únicamente si el mes ha terminado y has revisado que las horas reflejadas son correctas. Una vez que firmes, la empresa no podrá realizar ningún cambio en este registro."
           onConfirm={handleSign}
           onCancel={() => setShowSignPad(false)}
         />
