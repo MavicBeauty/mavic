@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { generateTimesheetPDF } from '@/lib/timesheet-pdf';
 import SignaturePad from '@/components/SignaturePad';
@@ -14,6 +14,8 @@ interface DayEntry {
   exit2: string;
   absence: 'none' | 'morning' | 'afternoon' | 'all';
   notes: string;
+  ent_comp?: string;
+  sal_comp?: string;
 }
 
 interface EmployeeLaborInfo {
@@ -34,7 +36,7 @@ const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 
 function emptyDays(): DayEntry[] {
   return Array.from({ length: 31 }, (_, i) => ({
-    day: i + 1, entry1: '', exit1: '', entry2: '', exit2: '', absence: 'none', notes: '',
+    day: i + 1, entry1: '', exit1: '', entry2: '', exit2: '', absence: 'none', notes: '', ent_comp: '', sal_comp: '',
   }));
 }
 
@@ -57,6 +59,7 @@ export default function EmpleadosPage() {
   const [showGestoriaConfirm, setShowGestoriaConfirm] = useState(false);
   const [gestoriaTargets, setGestoriaTargets] = useState<string[]>([]);
   const [loadingTargets, setLoadingTargets] = useState(false);
+  const [expandedExtraRows, setExpandedExtraRows] = useState<Set<number>>(new Set());
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -86,8 +89,10 @@ export default function EmpleadosPage() {
       .eq('period_year', year)
       .single();
     const row = data as { day_entries: DayEntry[]; observations: string | null; employee_signature_path: string | null; employer_signature_path: string | null; employee_signed_at: string | null; employer_signed_at: string | null } | null;
-    setDays(row?.day_entries ?? emptyDays());
+    const loaded = row?.day_entries ?? emptyDays();
+    setDays(loaded);
     setObservations(row?.observations ?? '');
+    setExpandedExtraRows(new Set(loaded.filter((d: DayEntry) => d.ent_comp || d.sal_comp).map((d: DayEntry) => d.day)));
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -516,6 +521,7 @@ export default function EmpleadosPage() {
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Salida 2</th>
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Total h</th>
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Ausencia</th>
+                  <th className="w-8" />
                 </tr>
               </thead>
               <tbody>
@@ -525,7 +531,8 @@ export default function EmpleadosPage() {
                   const hours = calcDailyHours(day);
 
                   return (
-                    <tr key={day.day} className={isWeekend ? 'bg-gray-50' : 'hover:bg-gray-50'}>
+                    <Fragment key={day.day}>
+                    <tr className={isWeekend ? 'bg-gray-50' : 'hover:bg-gray-50'}>
                       <td className="px-4 py-2 font-semibold text-gray-700">
                         {day.day}
                         <span className="text-gray-400 text-xs ml-1">
@@ -553,7 +560,56 @@ export default function EmpleadosPage() {
                           <option value="all">Todo el día</option>
                         </select>
                       </td>
+                      <td className="px-1 py-2 text-center">
+                        {!bothSigned && (
+                          <button
+                            onClick={() => {
+                              const next = new Set(expandedExtraRows);
+                              if (next.has(day.day)) {
+                                next.delete(day.day);
+                                handleDayChange(day.day, 'ent_comp', '');
+                                handleDayChange(day.day, 'sal_comp', '');
+                              } else {
+                                next.add(day.day);
+                              }
+                              setExpandedExtraRows(next);
+                            }}
+                            title={expandedExtraRows.has(day.day) ? 'Quitar horas comp.' : 'Añadir horas comp.'}
+                            className={`text-sm font-bold w-6 h-6 rounded-full transition leading-none ${
+                              expandedExtraRows.has(day.day)
+                                ? 'text-amber-500 hover:text-red-500 hover:bg-red-50'
+                                : 'text-gray-300 hover:text-amber-500 hover:bg-amber-50'
+                            }`}
+                          >
+                            {expandedExtraRows.has(day.day) ? '×' : '+'}
+                          </button>
+                        )}
+                      </td>
                     </tr>
+                    {expandedExtraRows.has(day.day) && (
+                      <tr key={`extra-${day.day}`} className="bg-amber-50/50 border-b border-amber-100">
+                        <td colSpan={8} className="px-4 pb-2 pt-1">
+                          <div className="flex items-center gap-4 pl-8">
+                            <span className="text-xs font-bold text-amber-700 uppercase tracking-wide whitespace-nowrap">Comp / Extra</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-500">Entrada</span>
+                              <input type="time" value={day.ent_comp ?? ''}
+                                onChange={(e) => handleDayChange(day.day, 'ent_comp', e.target.value)}
+                                disabled={bothSigned}
+                                className="px-2 py-1 border border-amber-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:bg-gray-100 w-28" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs text-gray-500">Salida</span>
+                              <input type="time" value={day.sal_comp ?? ''}
+                                onChange={(e) => handleDayChange(day.day, 'sal_comp', e.target.value)}
+                                disabled={bothSigned}
+                                className="px-2 py-1 border border-amber-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:bg-gray-100 w-28" />
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
@@ -568,6 +624,7 @@ export default function EmpleadosPage() {
                         : 'Completo ✓'
                       : ''}
                   </td>
+                  <td />
                 </tr>
               </tbody>
             </table>

@@ -46,6 +46,8 @@ export interface DayEntry {
   entry2: string; exit2: string;
   absence: 'none' | 'morning' | 'afternoon' | 'all';
   notes: string;
+  ent_comp?: string;
+  sal_comp?: string;
 }
 
 export interface EmployeeInfo {
@@ -305,6 +307,8 @@ export async function generateTimesheetPDF({
         if (entry.exit2)  cText(entry.exit2,  font, 6.5, COLS.sal2,  textY);
         const hrs = calcDailyHours(entry);
         if (hrs > 0) cText(hrs.toFixed(1) + 'h', bold, 8.5, COLS.tot, textY);
+        if (entry.ent_comp) cText(entry.ent_comp, font, 6.5, COLS.ent_comp, textY);
+        if (entry.sal_comp) cText(entry.sal_comp, font, 6.5, COLS.sal_comp, textY);
         // Partial absence label in the AUSENCIA column
         if (entry.absence !== 'none') {
           cText(ABSENCE_LABELS[entry.absence] || '', font, 6, COLS.ausencia, textY);
