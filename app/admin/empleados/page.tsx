@@ -142,6 +142,7 @@ export default function EmpleadosPage() {
 
   const totalHours = days.filter((d) => d.day <= daysInMonth).reduce((s, d) => s + calcDailyHours(d), 0);
   const bothSigned = !!(sigState.employee_signature_path && sigState.employer_signature_path);
+  const isLocked = !!sigState.employee_signature_path; // locked once employee signs, regardless of employer sig
   const empIdx = employees.findIndex(e => e.display_name === employee);
   const empColor = EMPLOYEE_COLORS[Math.max(0, empIdx) % EMPLOYEE_COLORS.length];
   // expectedHours will be derived from weekly_hours once the formula is decided
@@ -296,6 +297,22 @@ export default function EmpleadosPage() {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleDeleteEmployerSign = async () => {
+    setSigWorking(true);
+    setSigMsg('');
+    if (sigState.employer_signature_path) {
+      await supabase.storage.from('signatures').remove([sigState.employer_signature_path]);
+    }
+    await supabase.from('timesheets').update({
+      employer_signature_path: null,
+      employer_signed_at: null,
+    }).eq('employee_name', employee).eq('period_month', month).eq('period_year', year);
+    setSigState(s => ({ ...s, employer_signature_path: null, employer_signed_at: null }));
+    setSigMsg('Firma de empresa anulada');
+    setSigWorking(false);
+    setTimeout(() => setSigMsg(''), 3000);
   };
 
   const handleRequestChange = async () => {
@@ -474,7 +491,7 @@ export default function EmpleadosPage() {
               </select>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleSave} disabled={saving || bothSigned}
+              <button onClick={handleSave} disabled={saving || isLocked}
                 className="flex-1 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
                 {saving ? 'Guardando...' : 'Guardar'}
               </button>
@@ -579,6 +596,15 @@ export default function EmpleadosPage() {
                 {sigWorking ? 'Procesando...' : 'Firmar como empresa'}
               </button>
             )}
+            {sigState.employer_signature_path && (
+              <button
+                onClick={handleDeleteEmployerSign}
+                disabled={sigWorking}
+                className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
+              >
+                {sigWorking ? 'Anulando...' : 'Anular firma de empresa'}
+              </button>
+            )}
             {sigState.employee_signature_path && sigState.employer_signature_path && (
               <button
                 onClick={handleGestoriaClick}
@@ -612,9 +638,9 @@ export default function EmpleadosPage() {
               {empIdx >= 0 && <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${empColor.dot}`} />}
               {MONTHS[month - 1]} {year} — {employee}
             </h3>
-            {bothSigned && (
+            {isLocked && (
               <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                Bloqueado — ambas partes han firmado
+                {bothSigned ? 'Bloqueado — ambas partes han firmado' : 'Bloqueado — empleada ha firmado'}
               </span>
             )}
           </div>
@@ -652,7 +678,7 @@ export default function EmpleadosPage() {
                         <td key={field} className="px-2 py-2">
                           <input type="time" value={day[field]}
                             onChange={(e) => handleDayChange(day.day, field, e.target.value)}
-                            disabled={day.absence === 'all' || bothSigned}
+                            disabled={day.absence === 'all' || isLocked}
                             className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-mavic-pink disabled:bg-gray-100 disabled:text-gray-400" />
                         </td>
                       ))}
@@ -661,7 +687,7 @@ export default function EmpleadosPage() {
                       </td>
                       <td className="px-2 py-2">
                         <select value={day.absence} onChange={(e) => handleDayChange(day.day, 'absence', e.target.value)}
-                          disabled={bothSigned}
+                          disabled={isLocked}
                           className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-mavic-pink disabled:bg-gray-100 disabled:text-gray-400">
                           <option value="none">—</option>
                           <option value="morning">Mañana</option>
@@ -670,7 +696,7 @@ export default function EmpleadosPage() {
                         </select>
                       </td>
                       <td className="px-1 py-2 text-center">
-                        {!bothSigned && (
+                        {!isLocked && (
                           <button
                             onClick={() => {
                               const next = new Set(expandedExtraRows);
@@ -704,14 +730,14 @@ export default function EmpleadosPage() {
                               <span className="text-xs text-gray-500">Entrada</span>
                               <input type="time" value={day.ent_comp ?? ''}
                                 onChange={(e) => handleDayChange(day.day, 'ent_comp', e.target.value)}
-                                disabled={bothSigned}
+                                disabled={isLocked}
                                 className="px-2 py-1 border border-amber-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:bg-gray-100 w-28" />
                             </div>
                             <div className="flex items-center gap-1.5">
                               <span className="text-xs text-gray-500">Salida</span>
                               <input type="time" value={day.sal_comp ?? ''}
                                 onChange={(e) => handleDayChange(day.day, 'sal_comp', e.target.value)}
-                                disabled={bothSigned}
+                                disabled={isLocked}
                                 className="px-2 py-1 border border-amber-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 disabled:bg-gray-100 w-28" />
                             </div>
                           </div>
@@ -748,7 +774,7 @@ export default function EmpleadosPage() {
             onChange={e => setObservations(e.target.value)}
             rows={2}
             placeholder="Texto libre que aparecerá en el apartado de observaciones del PDF..."
-            disabled={bothSigned}
+            disabled={isLocked}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink resize-none disabled:bg-gray-50 disabled:text-gray-400"
           />
           <p className="text-xs text-gray-400 mt-1">Se guarda junto con el registro y se incluye en el PDF generado.</p>
@@ -763,7 +789,7 @@ export default function EmpleadosPage() {
           )}
           <button
             onClick={handleSave}
-            disabled={saving || bothSigned}
+            disabled={saving || isLocked}
             className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-6 rounded-lg transition disabled:opacity-50"
           >
             {saving ? 'Guardando...' : 'Guardar'}

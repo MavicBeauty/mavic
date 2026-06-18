@@ -329,7 +329,7 @@ export async function generateTimesheetPDF({
 
   rect(L, OBS_BOT, R - L, OBS_TOP - OBS_BOT);
   lText('Observaciones:', bold, 7, L + 3, OBS_TOP - 11);
-  if (observations) lText(observations, font, 7, L + 6, OBS_TOP - 16);
+  if (observations) lText(observations, font, 7, L + 33, OBS_TOP - 16);
 
   // ── Legal declaration ─────────────────────────────────────────────────────
 
