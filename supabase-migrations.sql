@@ -393,3 +393,6 @@ CREATE POLICY "Admins can delete attachments" ON client_attachments
 -- ============================================
 -- Done! All tables created with RLS policies
 -- ============================================
+
+-- 2026-06-18: add contracted weekly hours to employee profiles
+ALTER TABLE employee_labor_info ADD COLUMN weekly_hours integer;

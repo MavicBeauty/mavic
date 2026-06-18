@@ -14,6 +14,15 @@ async function verifyAdmin(req: NextRequest) {
   return user;
 }
 
+export async function GET(req: NextRequest) {
+  const caller = await verifyAdmin(req);
+  if (!caller) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
+  const gestoriaEmail = process.env.GESTORIA_EMAIL ?? '';
+  const targets = gestoriaEmail.split(',').map((e: string) => e.trim()).filter(Boolean);
+  return NextResponse.json({ targets });
+}
+
 export async function POST(req: NextRequest) {
   const caller = await verifyAdmin(req);
   if (!caller) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

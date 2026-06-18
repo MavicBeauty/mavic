@@ -37,7 +37,7 @@ function emptyDays(): DayEntry[] {
 }
 
 function calcDailyHours(d: DayEntry): number {
-  if (d.absence !== 'none' || !d.entry1 || !d.exit1) return 0;
+  if (d.absence === 'all' || !d.entry1 || !d.exit1) return 0;
   const [h1, m1] = d.entry1.split(':').map(Number);
   const [h2, m2] = d.exit1.split(':').map(Number);
   let h = h2 - h1 + (m2 - m1) / 60;
@@ -343,72 +343,76 @@ export default function EmpleadaHorarioPage() {
 
         {/* Signature status panel */}
         <div className="bg-white rounded-lg shadow-lg p-5 mb-5">
-          <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Firmas del mes</h2>
-          <div className="flex flex-wrap gap-4 items-center">
+          <h2 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Firmas del mes</h2>
+
+          <div className="grid sm:grid-cols-2 gap-4 mb-4">
             {/* Employee signature */}
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-xs text-gray-500 font-semibold mb-1">Tu firma</p>
+            <div className={`rounded-xl border-2 p-4 transition-colors ${isSigned ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{displayName}</p>
               {isSigned ? (
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
-                    <span>✓</span> Firmado
-                  </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
+                    <span className="text-sm font-bold text-green-700">Firmado</span>
+                  </div>
                   {sigState.employee_signed_at && (
-                    <span className="text-xs text-gray-400">{fmtTs(sigState.employee_signed_at)}</span>
+                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employee_signed_at)}</p>
                   )}
                 </div>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                  Pendiente de firma
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
+                </div>
               )}
             </div>
 
             {/* Employer signature */}
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-xs text-gray-500 font-semibold mb-1">Firma de la empresa</p>
+            <div className={`rounded-xl border-2 p-4 transition-colors ${employerSigned ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Empresa</p>
               {employerSigned ? (
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 px-3 py-1.5 rounded-full">
-                    <span>✓</span> Firmado
-                  </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
+                    <span className="text-sm font-bold text-green-700">Firmado</span>
+                  </div>
                   {sigState.employer_signed_at && (
-                    <span className="text-xs text-gray-400">{fmtTs(sigState.employer_signed_at)}</span>
+                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employer_signed_at)}</p>
                   )}
                 </div>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full">
-                  Pendiente de firma
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
+                </div>
               )}
             </div>
+          </div>
 
-            {/* Actions */}
-            <div className="flex gap-2 items-center flex-wrap">
-              {sigMsg && (
-                <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-                  {sigMsg}
-                </span>
-              )}
-              {!isSigned && (
-                <button
-                  onClick={() => setShowSignPad(true)}
-                  disabled={sigWorking}
-                  className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-50"
-                >
-                  {sigWorking ? 'Procesando...' : 'Firmar mes'}
-                </button>
-              )}
-              {isSigned && !employerSigned && (
-                <button
-                  onClick={handleDeleteSign}
-                  disabled={sigWorking}
-                  className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
-                >
-                  {sigWorking ? 'Anulando...' : 'Anular mi firma'}
-                </button>
-              )}
-            </div>
+          <div className="flex gap-2 items-center flex-wrap">
+            {sigMsg && (
+              <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                {sigMsg}
+              </span>
+            )}
+            {!isSigned && (
+              <button
+                onClick={() => setShowSignPad(true)}
+                disabled={sigWorking}
+                className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-50"
+              >
+                {sigWorking ? 'Procesando...' : 'Firmar mes'}
+              </button>
+            )}
+            {isSigned && !employerSigned && (
+              <button
+                onClick={handleDeleteSign}
+                disabled={sigWorking}
+                className="px-4 py-2 text-sm font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition disabled:opacity-50"
+              >
+                {sigWorking ? 'Anulando...' : 'Anular mi firma'}
+              </button>
+            )}
           </div>
         </div>
 
@@ -443,7 +447,6 @@ export default function EmpleadaHorarioPage() {
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Salida 2</th>
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Total h</th>
                   <th className="px-3 py-3 text-center font-semibold text-gray-700">Ausencia</th>
-                  {editMode && <th className="px-4 py-3 text-left font-semibold text-gray-700">Notas</th>}
                 </tr>
               </thead>
               <tbody>
@@ -451,6 +454,7 @@ export default function EmpleadaHorarioPage() {
                   const dow = new Date(year, month - 1, day.day).getDay();
                   const hours = calcDailyHours(day);
                   const hasAbsence = day.absence !== 'none';
+                  const isFullDayAbsence = day.absence === 'all';
 
                   return (
                     <tr key={day.day} className="border-b border-gray-100 hover:bg-gray-50">
@@ -461,7 +465,7 @@ export default function EmpleadaHorarioPage() {
 
                       {(['entry1','exit1','entry2','exit2'] as const).map(field => (
                         <td key={field} className="px-2 py-1.5">
-                          {editMode && !hasAbsence ? (
+                          {editMode && !isFullDayAbsence ? (
                             <input
                               type="time"
                               value={day[field]}
@@ -470,7 +474,7 @@ export default function EmpleadaHorarioPage() {
                             />
                           ) : (
                             <span className="text-xs text-gray-500 block text-center">
-                              {hasAbsence ? '—' : (day[field] || '—')}
+                              {isFullDayAbsence ? '—' : (day[field] || '—')}
                             </span>
                           )}
                         </td>
@@ -503,17 +507,6 @@ export default function EmpleadaHorarioPage() {
                         )}
                       </td>
 
-                      {editMode && (
-                        <td className="px-3 py-1.5">
-                          <input
-                            type="text"
-                            value={day.notes}
-                            onChange={e => handleDayChange(day.day, 'notes', e.target.value)}
-                            placeholder="Notas..."
-                            className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-mavic-pink"
-                          />
-                        </td>
-                      )}
                     </tr>
                   );
                 })}
@@ -521,7 +514,7 @@ export default function EmpleadaHorarioPage() {
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
                   <td className="px-4 py-3 text-mavic-black" colSpan={5}>TOTAL DEL MES</td>
                   <td className="px-3 py-3 text-center text-mavic-pink text-lg">{totalHours.toFixed(1)}</td>
-                  <td colSpan={editMode ? 2 : 1} />
+                  <td />
                 </tr>
               </tbody>
             </table>

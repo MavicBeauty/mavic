@@ -72,7 +72,7 @@ export interface TimesheetPDFParams {
 }
 
 function calcDailyHours(d: DayEntry): number {
-  if (d.absence !== 'none' || !d.entry1 || !d.exit1) return 0;
+  if (d.absence === 'all' || !d.entry1 || !d.exit1) return 0;
   const [h1, m1] = d.entry1.split(':').map(Number);
   const [h2, m2] = d.exit1.split(':').map(Number);
   let h = h2 - h1 + (m2 - m1) / 60;
@@ -250,22 +250,22 @@ export async function generateTimesheetPDF({
 
   // Vertical lines
   const VL_TOP = CH_TOP;
-  const VL_BOT = TOT_BOT;
 
-  // Group-boundary vLines — full height through header and all data rows
-  const groupBounds: [number, number][] = [
-    [L,                                        0.5],
-    [COLS.ent1.x,                              0.5],   // DIA right / HORAS group left
-    [COLS.ent_comp.x,                          1.2],   // HORAS group right / COMP group left (thick)
-    [COLS.ausencia.x,                          0.5],   // COMP group right / AUSENCIA left
-    [COLS.ausencia.x + COLS.ausencia.w,        0.5],   // AUSENCIA right / FIRMA left
-    [R,                                        0.5],   // right edge
-  ];
-  groupBounds.forEach(([x, thick]) => vLine(x, VL_BOT, VL_TOP, thick));
+  // Outer border — runs full height including total row
+  vLine(L, TOT_BOT, VL_TOP, 0.5);
+  vLine(R, TOT_BOT, VL_TOP, 0.5);
 
-  // Sub-column vLines — data rows + bottom half of header only (stop at H_MID_Y)
+  // Internal group boundaries — stop at GRID_BOT so they don't enter the total row
+  ([
+    [COLS.ent1.x,                          0.5],
+    [COLS.ent_comp.x,                      1.2],
+    [COLS.ausencia.x,                      0.5],
+    [COLS.ausencia.x + COLS.ausencia.w,    0.5],
+  ] as [number, number][]).forEach(([x, thick]) => vLine(x, GRID_BOT, VL_TOP, thick));
+
+  // Sub-column vLines — stop at GRID_BOT (bottom half of header only)
   [COLS.sal1.x, COLS.ent2.x, COLS.sal2.x, COLS.tot.x, COLS.sal_comp.x]
-    .forEach(x => vLine(x, VL_BOT, H_MID_Y));
+    .forEach(x => vLine(x, GRID_BOT, H_MID_Y));
 
   // ── Data rows ─────────────────────────────────────────────────────────────
 
@@ -280,28 +280,43 @@ export async function generateTimesheetPDF({
 
     const dow = new Date(year, month - 1, dayNum).getDay();
 
-    // Day number + day-of-week letter
     const DOW_LETTER = ['D','L','M','X','J','V','S'];
+    const entry = days.find(d => d.day === dayNum);
+
+    // "Todo el día" — shade the row, then redraw its borders so the grid stays intact
+    if (entry?.absence === 'all') {
+      page.drawRectangle({ x: L, y: rowBot, width: R - L, height: ROW_H, color: lgray });
+      hLine(rowTop);
+      hLine(rowBot);
+    }
+
+    // Day number drawn after shading so it's always visible
     cText(`${dayNum} ${DOW_LETTER[dow]}`, font, 6.5, COLS.dia, textY);
 
-    const entry = days.find(d => d.day === dayNum);
     if (entry) {
-      if (entry.absence !== 'none') {
-        const absLabel = ABSENCE_LABELS[entry.absence] || '';
-        cText(absLabel, font, 6, COLS.ent1, textY);
+      if (entry.absence === 'all') {
+        // Full-day absence: label goes in the AUSENCIA column only
+        cText(ABSENCE_LABELS.all, font, 6, COLS.ausencia, textY);
       } else {
+        // Normal row or partial absence: show time columns + hours
         if (entry.entry1) cText(entry.entry1, font, 6.5, COLS.ent1, textY);
         if (entry.exit1)  cText(entry.exit1,  font, 6.5, COLS.sal1,  textY);
         if (entry.entry2) cText(entry.entry2, font, 6.5, COLS.ent2,  textY);
         if (entry.exit2)  cText(entry.exit2,  font, 6.5, COLS.sal2,  textY);
         const hrs = calcDailyHours(entry);
         if (hrs > 0) cText(hrs.toFixed(1) + 'h', bold, 8.5, COLS.tot, textY);
+        // Partial absence label in the AUSENCIA column
+        if (entry.absence !== 'none') {
+          cText(ABSENCE_LABELS[entry.absence] || '', font, 6, COLS.ausencia, textY);
+        }
       }
     }
   }
 
   // ── Total row ─────────────────────────────────────────────────────────────
 
+  // Solid background covers full width — no internal column dividers in this row
+  page.drawRectangle({ x: L, y: TOT_BOT, width: R - L, height: ROW_H, color: lgray });
   const totTextY = TOT_BOT + 4;
   lText('TOTAL HORAS MES', bold, 7.5, L + 3, totTextY);
   cText(totalHours.toFixed(1) + 'h', bold, 8, COLS.tot, totTextY);

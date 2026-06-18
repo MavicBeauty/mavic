@@ -14,6 +14,7 @@ interface EmployeeLaborInfo {
   categoria: string;
   grupo_cotizacion: string;
   fecha_antiguedad: string;
+  weekly_hours: number | null;
   is_active: boolean;
 }
 
@@ -26,6 +27,7 @@ const emptyForm = {
   categoria: '',
   grupo_cotizacion: '',
   fecha_antiguedad: '',
+  weekly_hours: '',
   is_active: true,
 };
 
@@ -76,6 +78,23 @@ function EmployeeForm({
             {hint && <p className="text-xs text-gray-400 mt-0.5">{hint}</p>}
           </div>
         ))}
+      </div>
+      <div>
+        <label className="block text-sm font-semibold text-gray-700 mb-1">Horas semanales contratadas</label>
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="1"
+            max="40"
+            value={form.weekly_hours as string}
+            onChange={e => set('weekly_hours', e.target.value)}
+            placeholder="Ej: 40"
+            disabled={saving}
+            className="w-32 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink disabled:opacity-50"
+          />
+          <span className="text-sm text-gray-500">h/semana</span>
+        </div>
+        <p className="text-xs text-gray-400 mt-0.5">Para calcular las horas esperadas en el control de horarios</p>
       </div>
       <div className="flex items-center gap-2">
         <input
@@ -245,9 +264,11 @@ export default function EmpleadosPerfilesPage() {
   const handleCreate = async (form: typeof emptyForm) => {
     setSaving(true);
     setError('');
+    const { weekly_hours: whStr, ...rest } = form;
+    const payload = { ...rest, weekly_hours: whStr ? parseInt(whStr, 10) : null };
     const { data, error: err } = await supabase
       .from('employee_labor_info')
-      .insert([form])
+      .insert([payload])
       .select()
       .single();
     if (err) { setError(err.message); }
@@ -261,13 +282,15 @@ export default function EmpleadosPerfilesPage() {
   const handleUpdate = async (id: string, form: typeof emptyForm) => {
     setSaving(true);
     setError('');
+    const { weekly_hours: whStr, ...rest } = form;
+    const payload = { ...rest, weekly_hours: whStr ? parseInt(whStr, 10) : null };
     const { error: err } = await supabase
       .from('employee_labor_info')
-      .update(form)
+      .update(payload)
       .eq('id', id);
     if (err) { setError(err.message); }
     else {
-      setEmployees(e => e.map(emp => emp.id === id ? { ...emp, ...form } : emp));
+      setEmployees(e => e.map(emp => emp.id === id ? { ...emp, ...payload } : emp));
       setEditingId(null);
     }
     setSaving(false);
@@ -336,6 +359,7 @@ export default function EmpleadosPerfilesPage() {
                         categoria: emp.categoria || '',
                         grupo_cotizacion: emp.grupo_cotizacion || '',
                         fecha_antiguedad: emp.fecha_antiguedad || '',
+                        weekly_hours: emp.weekly_hours != null ? String(emp.weekly_hours) : '',
                         is_active: emp.is_active,
                       }}
                       onSave={form => handleUpdate(emp.id, form)}
@@ -372,6 +396,7 @@ export default function EmpleadosPerfilesPage() {
                         { label: 'Categoría', value: emp.categoria },
                         { label: 'Grupo de cotización', value: emp.grupo_cotizacion },
                         { label: 'Fecha de antigüedad', value: emp.fecha_antiguedad },
+                        { label: 'Horas semanales', value: emp.weekly_hours != null ? `${emp.weekly_hours} h/semana` : '' },
                       ].map(({ label, value }) => value ? (
                         <div key={label}>
                           <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
