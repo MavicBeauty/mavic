@@ -558,20 +558,11 @@ export default function EmpleadaHorarioPage() {
         <div className={`transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-5">
+        <div className="mb-5">
           <div className={`bg-white p-4 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
             <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Horas trabajadas</p>
             <p className="text-3xl font-bold text-mavic-pink">{totalHours.toFixed(1)}</p>
             <p className="text-xs text-gray-400 mt-1">{MONTHS[month - 1]} {year}</p>
-          </div>
-          <div className={`bg-white p-4 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
-            <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Estado</p>
-            <p className="text-lg font-bold text-mavic-black">{profile?.name}</p>
-            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full mt-1 inline-block ${
-              isSigned ? 'bg-green-100 text-green-700' : editMode ? 'bg-mavic-pink/10 text-mavic-pink' : 'bg-gray-100 text-gray-500'
-            }`}>
-              {isSigned ? 'Firmado' : editMode ? 'Editando' : 'Lectura'}
-            </span>
           </div>
         </div>
 
