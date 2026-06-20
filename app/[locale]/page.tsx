@@ -58,6 +58,12 @@ export default function Home() {
 
 
   const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (href === '#booksy') {
+      e.preventDefault();
+      setMenuOpen(false);
+      openBooksy();
+      return;
+    }
     if (!href.startsWith('#')) return;
     e.preventDefault();
     setMenuOpen(false);
@@ -72,7 +78,7 @@ export default function Home() {
 
   const navLinks = [
     { href: '#servicios',              label: tNav('services') },
-    { href: 'https://mavicbeautynails.booksy.com/h', label: tNav('bookings'), external: true },
+    { href: '#booksy', label: tNav('bookings') },
     { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
     { href: '#tarjetas',               label: tNav('giftCards') },
     { href: '#contacto',               label: tNav('contact') },
@@ -94,7 +100,6 @@ export default function Home() {
           <div className="hidden md:flex items-center gap-6">
             {navLinks.map((l) => (
               <a key={l.href} href={l.href}
-                {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 onClick={(e) => handleAnchorClick(e, l.href)}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink transition">
                 {l.label}
@@ -121,7 +126,6 @@ export default function Home() {
             {navLinks.map((l) => (
               <a key={l.href} href={l.href}
                 onClick={(e) => handleAnchorClick(e, l.href)}
-                {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink py-1 transition">
                 {l.label}
               </a>
@@ -357,11 +361,11 @@ export default function Home() {
                 <Image src="/icons/instagram.png" alt="Instagram" width={28} height={28} className="shrink-0" />
                 <span>{tContact('instagram')}</span>
               </a>
-              <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
-                className="flex items-center gap-3 bg-mavic-black text-white p-4 rounded-xl font-semibold transition shadow-sm hover:bg-gray-900">
+              <button onClick={openBooksy}
+                className="flex items-center gap-3 bg-mavic-black text-white p-4 rounded-xl font-semibold transition shadow-sm hover:bg-gray-900 w-full">
                 <span className="text-2xl">📅</span>
                 <span>{tContact('booksyBtn')}</span>
-              </a>
+              </button>
             </div>
           </div>
         </div>
