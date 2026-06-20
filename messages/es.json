@@ -99,14 +99,18 @@
     "booksyBtn": "Reservar cita en Booksy",
     "hoursDetail": "L-V 10:00-14:00 y 15:00-21:00 | S 10:00-14:00",
     "whatsapp": "Contactar por WhatsApp",
-    "booksy": "Ver citas en Booksy"
+    "booksy": "Ver citas en Booksy",
+    "emailLbl": "Email",
+    "emailVal": "mavicbeautyandnails@gmail.com"
   },
   "footer": {
     "address": "Plaça de l'Església, 11, 08110 Montcada i Reixac, Barcelona",
     "phone": "+34 643 59 19 84",
     "instagram": "@mavicnailscenter",
     "hours": "L-V 10:00-14:00 y 15:00-21:00 | S 10:00-14:00",
-    "rights": "Todos los derechos reservados"
+    "rights": "Todos los derechos reservados",
+    "joinTeam": "¿Quieres formar parte del equipo de Mavic?",
+    "joinTeamCta": "Envíanos tu currículum"
   },
   "serviciosPage": {
     "tag": "Tarifas actualizadas",

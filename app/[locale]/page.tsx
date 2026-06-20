@@ -90,7 +90,7 @@ export default function Home() {
     { href: '#booksy', label: tNav('bookings') },
     { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
     { href: '#tarjetas',               label: tNav('giftCards') },
-    { href: '#contacto',               label: tNav('contact') },
+    { href: `/${locale}/contacto`,      label: tNav('contact') },
   ];
 
   return (
@@ -358,6 +358,13 @@ export default function Home() {
                 <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('phoneLbl')}</p>
                 <p className="text-mavic-black font-semibold">643 59 19 84</p>
               </div>
+              {/* Email */}
+              <div>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('emailLbl')}</p>
+                <a href="mailto:mavicbeautyandnails@gmail.com" className="text-mavic-black font-medium hover:text-mavic-pink transition text-sm break-all">
+                  {tContact('emailVal')}
+                </a>
+              </div>
             </div>
             <div className="space-y-4">
               <a href="https://wa.me/34643591984" target="_blank" rel="noopener noreferrer"
@@ -388,6 +395,12 @@ export default function Home() {
             <span className="text-sm text-gray-400">Mavic Beauty & Nails · Montcada i Reixac, Barcelona</span>
           </div>
           <div className="flex flex-col items-center md:items-end gap-2">
+            <p className="text-gray-400 text-sm text-center md:text-right">
+              {tFooter('joinTeam')}{' '}
+              <a href="mailto:mavicbeautyandnails@gmail.com" className="text-mavic-pink hover:underline font-medium">
+                {tFooter('joinTeamCta')}
+              </a>
+            </p>
             <div className="flex gap-4 text-xs text-gray-500">
               <Link href={`/${locale}/aviso-legal`} className="hover:text-gray-300 transition">Aviso Legal</Link>
               <Link href={`/${locale}/privacidad`} className="hover:text-gray-300 transition">Privacidad</Link>
