@@ -27,6 +27,7 @@ export default function ContactoPage() {
 
       <main className="flex-1 max-w-3xl mx-auto w-full px-4 py-12">
 
+        {/* Hero */}
         <div className="text-center mb-10">
           <span className="inline-block bg-mavic-pink text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-widest mb-4">
             {tContact('findUs')}
@@ -34,97 +35,102 @@ export default function ContactoPage() {
           <h1 className="text-4xl md:text-5xl font-extrabold text-mavic-black">
             {locale === 'ca' ? 'Contacte' : 'Contacto'}
           </h1>
+          <p className="text-gray-500 mt-3 text-sm">
+            {locale === 'ca'
+              ? 'Escriu-nos, truca\'ns o vine a visitar-nos.'
+              : 'Escríbenos, llámanos o ven a visitarnos.'}
+          </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        {/* Action buttons — 2×2 grid, prominent */}
+        <div className="grid grid-cols-2 gap-4 mb-8">
+          <a href="https://wa.me/34643591984" target="_blank" rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-semibold transition shadow-sm text-center">
+            <Image src="/icons/whatsapp.png" alt="WhatsApp" width={36} height={36} className="shrink-0" />
+            <span className="text-sm">{tContact('whatsappBtn')}</span>
+          </a>
+          <a href="https://www.instagram.com/mavicnailscenter/" target="_blank" rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-6 rounded-2xl font-semibold transition shadow-sm text-center">
+            <Image src="/icons/instagram.png" alt="Instagram" width={36} height={36} className="shrink-0" />
+            <span className="text-sm">{tContact('instagram')}</span>
+          </a>
+          <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
+            className="flex flex-col items-center justify-center gap-2 bg-mavic-black hover:bg-gray-900 text-white p-6 rounded-2xl font-semibold transition shadow-sm text-center">
+            <span className="text-3xl leading-none">📅</span>
+            <span className="text-sm">{tContact('booksyBtn')}</span>
+          </a>
+          <a href="mailto:mavicbeautyandnails@gmail.com"
+            className="flex flex-col items-center justify-center gap-2 bg-white hover:bg-gray-50 text-mavic-black border border-gray-200 p-6 rounded-2xl font-semibold transition shadow-sm text-center">
+            <span className="text-3xl leading-none">✉️</span>
+            <span className="text-sm">{tContact('emailVal')}</span>
+          </a>
+        </div>
 
-          {/* Info card */}
-          <div className="bg-white rounded-2xl p-8 shadow-sm space-y-6">
-            {/* Hours */}
-            <div>
-              <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-3">{tContact('hours')}</p>
-              <div className="space-y-2">
-                <div className="flex justify-between items-start gap-4 pb-2 border-b border-gray-100">
-                  <span className="text-sm font-semibold text-mavic-black shrink-0">{tContact('weekdaysLabel')}</span>
-                  <div className="text-sm text-right text-mavic-black">
-                    <p>{tContact('weekdaysMorning')}</p>
-                    <p>{tContact('weekdaysAfternoon')}</p>
-                  </div>
-                </div>
-                <div className="flex justify-between items-center gap-4">
-                  <span className="text-sm font-semibold text-mavic-black">{tContact('saturdaysLabel')}</span>
-                  <span className="text-sm text-mavic-black">{tContact('saturdaysTimes')}</span>
-                </div>
+        {/* Info strip — 3 columns */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+
+          {/* Hours */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-3">{tContact('hours')}</p>
+            <div className="space-y-2">
+              <div className="pb-2 border-b border-gray-100">
+                <p className="text-sm font-semibold text-mavic-black">{tContact('weekdaysLabel')}</p>
+                <p className="text-xs text-gray-500">{tContact('weekdaysMorning')}</p>
+                <p className="text-xs text-gray-500">{tContact('weekdaysAfternoon')}</p>
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-mavic-black">{tContact('saturdaysLabel')}</p>
+                <p className="text-xs text-gray-500">{tContact('saturdaysTimes')}</p>
               </div>
             </div>
+          </div>
 
-            {/* Address */}
-            <div>
-              <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-2">{tContact('addressLabel')}</p>
-              <a href="https://share.google/shRr8qAymIRJfmV5d" target="_blank" rel="noopener noreferrer"
-                className="flex items-start gap-2 text-mavic-black hover:text-mavic-pink transition group">
-                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mt-0.5 shrink-0 text-mavic-pink" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                </svg>
-                <div>
-                  <p className="font-medium">{tContact('address')}</p>
-                  <p className="text-sm text-gray-500">{tContact('city')}</p>
-                  <p className="text-xs text-mavic-pink mt-0.5 group-hover:underline">{tContact('mapsLink')}</p>
-                </div>
-              </a>
-            </div>
+          {/* Address */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm">
+            <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-3">{tContact('addressLabel')}</p>
+            <a href="https://share.google/shRr8qAymIRJfmV5d" target="_blank" rel="noopener noreferrer"
+              className="flex items-start gap-2 text-mavic-black hover:text-mavic-pink transition group">
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mt-0.5 shrink-0 text-mavic-pink" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              <div>
+                <p className="text-sm font-medium">{tContact('address')}</p>
+                <p className="text-xs text-gray-500">{tContact('city')}</p>
+                <p className="text-xs text-mavic-pink mt-1 group-hover:underline">{tContact('mapsLink')}</p>
+              </div>
+            </a>
+          </div>
 
-            {/* Phone */}
+          {/* Phone + Email */}
+          <div className="bg-white rounded-2xl p-6 shadow-sm space-y-4">
             <div>
               <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('phoneLbl')}</p>
-              <a href="tel:+34643591984" className="text-mavic-black font-semibold hover:text-mavic-pink transition">
+              <a href="tel:+34643591984" className="text-mavic-black font-semibold hover:text-mavic-pink transition text-sm">
                 643 59 19 84
               </a>
             </div>
-
-            {/* Email */}
             <div>
               <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('emailLbl')}</p>
-              <a href="mailto:mavicbeautyandnails@gmail.com" className="text-mavic-black font-medium hover:text-mavic-pink transition text-sm break-all">
+              <a href="mailto:mavicbeautyandnails@gmail.com" className="text-mavic-black font-medium hover:text-mavic-pink transition text-xs break-all">
                 {tContact('emailVal')}
               </a>
             </div>
           </div>
 
-          {/* Action buttons */}
-          <div className="space-y-4">
-            <a href="https://wa.me/34643591984" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl font-semibold transition shadow-sm">
-              <Image src="/icons/whatsapp.png" alt="WhatsApp" width={28} height={28} className="shrink-0" />
-              <span>{tContact('whatsappBtn')}</span>
-            </a>
-            <a href="https://www.instagram.com/mavicnailscenter/" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-xl font-semibold transition shadow-sm">
-              <Image src="/icons/instagram.png" alt="Instagram" width={28} height={28} className="shrink-0" />
-              <span>{tContact('instagram')}</span>
-            </a>
-            <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-mavic-black hover:bg-gray-900 text-white p-4 rounded-xl font-semibold transition shadow-sm">
-              <span className="text-2xl">📅</span>
-              <span>{tContact('booksyBtn')}</span>
-            </a>
-            <a href="mailto:mavicbeautyandnails@gmail.com"
-              className="flex items-center gap-3 bg-white hover:bg-gray-50 text-mavic-black border border-gray-200 p-4 rounded-xl font-semibold transition shadow-sm">
-              <span className="text-2xl">✉️</span>
-              <span>{tContact('emailVal')}</span>
-            </a>
-          </div>
         </div>
 
         {/* Trabaja con nosotros */}
-        <div className="mt-10 bg-white rounded-2xl p-8 shadow-sm text-center">
+        <div className="bg-white rounded-2xl p-8 shadow-sm text-center">
           <h2 className="text-lg font-extrabold text-mavic-black mb-1">
             {tFooter('joinTeam')}
           </h2>
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-gray-500 text-sm mb-3">
             {locale === 'ca'
               ? "Envia'ns el teu currículum i et contactarem quan tinguem una oportunitat."
               : 'Envíanos tu currículum y te contactaremos cuando tengamos una oportunidad.'}
+          </p>
+          <p className="text-mavic-pink text-sm font-medium mb-5">
+            mavicbeautyandnails@gmail.com
           </p>
           <a href="mailto:mavicbeautyandnails@gmail.com?subject=Currículum - Mavic Beauty %26 Nails"
             className="inline-flex items-center gap-2 bg-mavic-pink hover:bg-pink-600 text-white font-bold py-3 px-8 rounded-full transition shadow-sm">
