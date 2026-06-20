@@ -23,9 +23,7 @@ function adminClient() {
   );
 }
 
-export async function GET(req: NextRequest) {
-  if (!await verifyAdmin(req)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
+export async function GET() {
   const supabase = adminClient();
   const { data, error } = await supabase.storage
     .from('nail-gallery')
