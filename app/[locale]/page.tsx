@@ -310,12 +310,12 @@ export default function Home() {
             <div className="space-y-4">
               <a href="https://wa.me/34643591984" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-green-500 hover:bg-green-600 text-white p-4 rounded-xl font-semibold transition shadow-sm">
-                <span className="text-2xl">💬</span>
+                <Image src="/icons/whatsapp.png" alt="WhatsApp" width={28} height={28} className="shrink-0" />
                 <span>{tContact('whatsappBtn')}</span>
               </a>
               <a href="https://www.instagram.com/mavicnailscenter/" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white p-4 rounded-xl font-semibold transition shadow-sm">
-                <span className="text-2xl">📸</span>
+                <Image src="/icons/instagram.png" alt="Instagram" width={28} height={28} className="shrink-0" />
                 <span>{tContact('instagram')}</span>
               </a>
               <a href="https://mavicbeautynails.booksy.com/h" target="_blank" rel="noopener noreferrer"
