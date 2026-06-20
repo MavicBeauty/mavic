@@ -4,6 +4,7 @@
     "pricing": "Precios",
     "bookings": "Reservas",
     "creations": "Nuestras Creaciones",
+    "esmaltes": "Esmaltes",
     "giftCards": "Tarjetas Regalo",
     "contact": "Contacto"
   },
@@ -126,6 +127,25 @@
     "back": "← Volver",
     "empty": "Pronto añadiremos fotos de nuestros trabajos.",
     "loading": "Cargando galería..."
+  },
+  "esmaltes": {
+    "tag": "Paletas de temporada",
+    "title": "Colores que inspiran",
+    "subtitle": "Nuestra selección de colores tendencia para cada estación. Pregúntanos por cualquier tono en tu próxima cita.",
+    "brands": "Trabajamos con Masglo, Claresa, Elixir y Manicura Perfecta — productos con certificación europea.",
+    "bookCta": "Reserva tu cita",
+    "tendencia": "Tendencia",
+    "nueva": "Nueva temporada",
+    "clasicos": "Clásicos",
+    "badges": {
+      "ce": "Certificado CE",
+      "vegan": "Vegano",
+      "crueltyfree": "Cruelty-Free",
+      "duration": "Hasta 3 semanas",
+      "safe": "Fórmula Segura",
+      "tpof": "TPOF-Free",
+      "expert": "Selección Experta"
+    }
   },
   "admin": {
     "login": "Acceso Administrador",

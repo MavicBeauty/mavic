@@ -89,6 +89,7 @@ export default function Home() {
     { href: '#servicios',              label: tNav('services') },
     { href: '#booksy', label: tNav('bookings') },
     { href: `/${locale}/nuestras-creaciones`, label: tNav('creations') },
+    { href: `/${locale}/esmaltes`,            label: tNav('esmaltes') },
     { href: '#tarjetas',               label: tNav('giftCards') },
     { href: `/${locale}/contacto`,      label: tNav('contact') },
   ];
