@@ -307,16 +307,40 @@ export default function Home() {
             {tContact('findUs')}
           </h2>
           <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-2xl p-8 shadow-sm space-y-5">
+            <div className="bg-white rounded-2xl p-8 shadow-sm space-y-6">
+              {/* Hours */}
               <div>
-                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('hours')}</p>
-                <p className="font-semibold text-mavic-black">{tContact('weekdays')}</p>
-                <p className="font-semibold text-mavic-black">{tContact('saturdays')}</p>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-3">{tContact('hours')}</p>
+                <div className="space-y-2">
+                  <div className="flex justify-between items-start gap-4 pb-2 border-b border-gray-100">
+                    <span className="text-sm font-semibold text-mavic-black shrink-0">{tContact('weekdaysLabel')}</span>
+                    <div className="text-sm text-right text-mavic-black">
+                      <p>{tContact('weekdaysMorning')}</p>
+                      <p>{tContact('weekdaysAfternoon')}</p>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center gap-4">
+                    <span className="text-sm font-semibold text-mavic-black">{tContact('saturdaysLabel')}</span>
+                    <span className="text-sm text-mavic-black">{tContact('saturdaysTimes')}</span>
+                  </div>
+                </div>
               </div>
+              {/* Address */}
               <div>
-                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('addressLabel')}</p>
-                <p className="text-mavic-black">{tContact('address')}<br />{tContact('city')}</p>
+                <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-2">{tContact('addressLabel')}</p>
+                <a href="https://share.google/shRr8qAymIRJfmV5d" target="_blank" rel="noopener noreferrer"
+                  className="flex items-start gap-2 text-mavic-black hover:text-mavic-pink transition group">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 mt-0.5 shrink-0 text-mavic-pink" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                  <div>
+                    <p className="font-medium">{tContact('address')}</p>
+                    <p className="text-sm text-gray-500">{tContact('city')}</p>
+                    <p className="text-xs text-mavic-pink mt-0.5 group-hover:underline">{tContact('mapsLink')}</p>
+                  </div>
+                </a>
               </div>
+              {/* Phone */}
               <div>
                 <p className="text-xs font-bold text-mavic-pink uppercase tracking-widest mb-1">{tContact('phoneLbl')}</p>
                 <p className="text-mavic-black font-semibold">643 59 19 84</p>
