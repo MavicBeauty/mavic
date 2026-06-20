@@ -45,10 +45,19 @@ export default function Home() {
     const script = document.createElement('script');
     script.src = 'https://booksy.com/widget-2021/code.js?id=97502&country=es&lang=es&mode=dialog';
     script.async = true;
-
     container.appendChild(script);
 
-    return () => { script.remove(); };
+    // Booksy swaps the favicon when its widget initialises — revert any external icon change
+    const observer = new MutationObserver(() => {
+      document.querySelectorAll<HTMLLinkElement>('link[rel*="icon"]').forEach((el) => {
+        if (el.href && !el.href.includes(window.location.origin)) {
+          el.remove();
+        }
+      });
+    });
+    observer.observe(document.head, { childList: true, subtree: true, attributes: true, attributeFilter: ['href'] });
+
+    return () => { script.remove(); observer.disconnect(); };
   }, []);
 
   const openBooksy = () => {
