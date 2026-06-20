@@ -57,6 +57,19 @@ export default function Home() {
   };
 
 
+  const handleAnchorClick = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (!href.startsWith('#')) return;
+    e.preventDefault();
+    setMenuOpen(false);
+    const target = document.querySelector(href);
+    if (!target) return;
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    target.classList.remove('section-highlight');
+    void (target as HTMLElement).offsetWidth; // reflow to restart animation
+    target.classList.add('section-highlight');
+    target.addEventListener('animationend', () => target.classList.remove('section-highlight'), { once: true });
+  };
+
   const navLinks = [
     { href: '#servicios',              label: tNav('services') },
     { href: 'https://mavicbeautynails.booksy.com/h', label: tNav('bookings'), external: true },
@@ -82,6 +95,7 @@ export default function Home() {
             {navLinks.map((l) => (
               <a key={l.href} href={l.href}
                 {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                onClick={(e) => handleAnchorClick(e, l.href)}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink transition">
                 {l.label}
               </a>
@@ -105,7 +119,8 @@ export default function Home() {
         {menuOpen && (
           <div className="md:hidden bg-white border-t border-gray-100 px-4 pb-4 flex flex-col gap-4 shadow-lg">
             {navLinks.map((l) => (
-              <a key={l.href} href={l.href} onClick={() => setMenuOpen(false)}
+              <a key={l.href} href={l.href}
+                onClick={(e) => handleAnchorClick(e, l.href)}
                 {...(l.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
                 className="text-sm font-medium text-gray-700 hover:text-mavic-pink py-1 transition">
                 {l.label}

@@ -34,5 +34,15 @@ body {
   background: #b8942f;
 }
 
+/* Pulse ring when a section is scrolled-to via nav */
+@keyframes section-pulse {
+  0%   { box-shadow: 0 0 0 0px rgba(233, 149, 172, 0.45); }
+  60%  { box-shadow: 0 0 0 18px rgba(233, 149, 172, 0); }
+  100% { box-shadow: 0 0 0 0px rgba(233, 149, 172, 0); }
+}
+.section-highlight {
+  animation: section-pulse 0.75s ease-out;
+}
+
 /* Hide Booksy's default floating button — we use our own trigger */
 .booksy-widget-button { display: none !important; }
