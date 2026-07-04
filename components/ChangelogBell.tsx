@@ -88,25 +88,25 @@ export default function ChangelogBell() {
         ref={triggerRef}
         onClick={handleOpen}
         aria-label={hasUnseen ? 'Novedades del sistema (hay novedades sin leer)' : 'Novedades del sistema'}
-        className="relative p-2.5 rounded-full text-white/90 hover:text-white hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mavic-pink"
+        className="relative p-2.5 rounded-full bg-white text-mavic-pink shadow-md hover:shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mavic-pink"
       >
         <svg
-          className={`w-5 h-5 origin-top ${hasUnseen ? 'motion-safe:animate-bell-shake' : ''}`}
+          className={`w-6 h-6 origin-top ${hasUnseen ? 'motion-safe:animate-bell-shake' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
             d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
         </svg>
         {hasUnseen && (
-          <span className="absolute top-1.5 right-1.5 flex h-2.5 w-2.5">
+          <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
             <span className="motion-safe:animate-ping motion-reduce:hidden absolute inline-flex h-full w-full rounded-full bg-mavic-gold opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-mavic-gold ring-2 ring-mavic-pink" />
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-mavic-gold ring-2 ring-white" />
           </span>
         )}
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Novedades">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Novedades">
           <div
             onClick={handleClose}
             className={`absolute inset-0 bg-black/40 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out ${
@@ -114,19 +114,16 @@ export default function ChangelogBell() {
             }`}
           />
           <div
-            className={`absolute inset-y-0 right-0 w-full sm:max-w-md bg-mavic-beige shadow-2xl flex flex-col motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out ${
-              visible ? 'translate-x-0' : 'translate-x-full'
+            className={`relative bg-mavic-beige rounded-xl shadow-2xl w-full max-w-lg max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
+              visible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
             }`}
           >
-            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0">
-              <div>
-                <h2 className="text-lg font-bold">Novedades</h2>
-                <p className="text-white/80 text-sm mt-0.5">Lo que ha cambiado en el panel</p>
-              </div>
+            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0 rounded-t-xl">
+              <h2 className="text-lg font-bold">María, estas novedades son para ti.</h2>
               <button
                 onClick={handleClose}
                 aria-label="Cerrar"
-                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white flex-shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
