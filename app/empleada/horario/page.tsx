@@ -433,10 +433,10 @@ export default function EmpleadaHorarioPage() {
       )}
 
       <main className="max-w-5xl mx-auto px-4 py-6">
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-5">
-          <div className="flex flex-wrap gap-4 items-end justify-between">
-            <div className="flex gap-3 flex-wrap">
+        {/* Datos del mes */}
+        <div className={`bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 ${empColor.borderL}`}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
                 <select
@@ -457,9 +457,12 @@ export default function EmpleadaHorarioPage() {
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
                 </select>
               </div>
+              <p className={`text-sm text-gray-500 pb-2 transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
+                🕐 <span className="font-bold text-mavic-pink">{totalHours.toFixed(1)}h</span> este mes
+              </p>
             </div>
 
-            <div className="flex gap-2 items-center flex-wrap">
+            <div className="flex flex-col items-end gap-2">
               {saveMsg ? (
                 <span className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {saveMsg}
@@ -467,22 +470,24 @@ export default function EmpleadaHorarioPage() {
               ) : dirty && !saving ? (
                 <span className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</span>
               ) : null}
-              <button
-                onClick={handleGeneratePdf}
-                disabled={generatingPdf || !laborInfo}
-                className="bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition"
-              >
-                {generatingPdf ? 'Generando...' : 'Descargar PDF'}
-              </button>
-              {canEdit && (
+              <div className="flex gap-2">
+                {canEdit && (
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
+                  >
+                    {saving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                )}
                 <button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
+                  onClick={handleGeneratePdf}
+                  disabled={generatingPdf || !laborInfo}
+                  className="bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition"
                 >
-                  {saving ? 'Guardando...' : 'Guardar'}
+                  {generatingPdf ? 'Generando...' : 'Descargar PDF'}
                 </button>
-              )}
+              </div>
             </div>
           </div>
           {(isSigned || employerSigned) && (
@@ -494,55 +499,35 @@ export default function EmpleadaHorarioPage() {
           )}
         </div>
 
-        {/* Signature status panel */}
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-5">
+        {/* Firmas del mes */}
+        <div className={`bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 ${empColor.borderL}`}>
           <h2 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Firmas del mes</h2>
 
-          <div className="grid sm:grid-cols-2 gap-4 mb-4">
-            {/* Employee signature */}
-            <div className={`rounded-xl border-2 p-4 transition-colors ${isSigned ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{displayName}</p>
-              {isSigned ? (
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
-                    <span className="text-sm font-bold text-green-700">Firmado</span>
-                  </div>
-                  {sigState.employee_signed_at && (
-                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employee_signed_at)}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            {/* Employee pill */}
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              isSigned ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isSigned ? 'bg-green-500' : 'bg-gray-300'}`} />
+              {displayName}
+              <span className="font-normal text-xs opacity-80">
+                — {isSigned && sigState.employee_signed_at ? fmtTs(sigState.employee_signed_at) : 'pendiente'}
+              </span>
+            </span>
 
-            {/* Employer signature */}
-            <div className={`rounded-xl border-2 p-4 transition-colors ${employerSigned ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Empresa</p>
-              {employerSigned ? (
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
-                    <span className="text-sm font-bold text-green-700">Firmado</span>
-                  </div>
-                  {sigState.employer_signed_at && (
-                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employer_signed_at)}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
-                </div>
-              )}
-            </div>
+            {/* Employer pill */}
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              employerSigned ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${employerSigned ? 'bg-green-500' : 'bg-gray-300'}`} />
+              Empresa
+              <span className="font-normal text-xs opacity-80">
+                — {employerSigned && sigState.employer_signed_at ? fmtTs(sigState.employer_signed_at) : 'pendiente'}
+              </span>
+            </span>
           </div>
 
-          <div className="flex gap-2 items-center flex-wrap">
+          <div className="flex gap-2 items-center flex-wrap pt-4 border-t border-gray-100">
             {sigMsg && (
               <span className={`text-sm font-semibold ${sigMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                 {sigMsg}
@@ -571,15 +556,6 @@ export default function EmpleadaHorarioPage() {
 
         {/* Fading content area */}
         <div className={`transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
-
-        {/* Stats */}
-        <div className="mb-5">
-          <div className={`bg-white p-4 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
-            <p className="text-xs text-gray-500 font-semibold uppercase mb-1">Horas trabajadas</p>
-            <p className="text-3xl font-bold text-mavic-pink">{totalHours.toFixed(1)}</p>
-            <p className="text-xs text-gray-400 mt-1">{MONTHS[month - 1]} {year}</p>
-          </div>
-        </div>
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -661,7 +637,17 @@ export default function EmpleadaHorarioPage() {
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
                   <td className="px-4 py-3 text-mavic-black" colSpan={5}>TOTAL DEL MES</td>
                   <td className="px-3 py-3 text-center text-mavic-pink text-lg">{totalHours.toFixed(1)}</td>
-                  <td />
+                  <td className="px-3 py-3 text-right">
+                    {canEdit && (
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-1.5 px-5 rounded-lg text-sm disabled:opacity-50 transition"
+                      >
+                        {saving ? 'Guardando...' : 'Guardar'}
+                      </button>
+                    )}
+                  </td>
                 </tr>
               </tbody>
             </table>
