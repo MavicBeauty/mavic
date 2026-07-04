@@ -24,12 +24,12 @@ export default function DashboardPage() {
   };
 
   const sections = [
-    { href: '/admin/clientes',       icon: '👥', title: 'Clientes',           desc: 'Ver, buscar y editar clientes. Gestionar consentimientos e historiales clínicos.' },
-    { href: '/admin/servicios',      icon: '💅', title: 'Servicios & Precios', desc: 'Añadir, editar y eliminar servicios. Gestionar precios en español y catalán.' },
-    { href: '/admin/creaciones',     icon: '🖼️', title: 'Nuestras Creaciones', desc: 'Subir y eliminar fotos de la galería pública.' },
-    { href: '/admin/ofertas',        icon: '📢', title: 'Ventana Emergente',   desc: 'Configura el anuncio que aparece al entrar al sitio web.' },
-    { href: '/admin/tarjetas-regalo',icon: '🎫', title: 'Tarjetas Regalo',     desc: 'Revisar solicitudes, añadir código Booksy y enviar a clientes.' },
-    { href: '/admin/empleadas',      icon: '👥', title: 'Empleadas',               desc: 'Control de horarios, nóminas, perfiles y permisos de acceso.' },
+    { href: '/admin/clientes',        icon: '👥',   title: 'Clientes',           desc: 'Ver, buscar y editar clientes. Gestionar consentimientos e historiales clínicos.',           tone: 'hero',    accent: 'border-mavic-pink', span: 'lg:col-span-2' },
+    { href: '/admin/empleadas',       icon: '🧑‍💼', title: 'Empleadas',          desc: 'Control de horarios, nóminas, perfiles y permisos de acceso.',                                tone: 'hero',    accent: 'border-mavic-gold', span: '' },
+    { href: '/admin/tarjetas-regalo', icon: '🎫',   title: 'Tarjetas Regalo',    desc: 'Revisar solicitudes, añadir código Booksy y enviar a clientes.',                              tone: 'default', accent: '',                  span: '' },
+    { href: '/admin/servicios',       icon: '💅',   title: 'Servicios & Precios',desc: 'Añadir, editar y eliminar servicios. Gestionar precios en español y catalán.',                tone: 'default', accent: '',                  span: '' },
+    { href: '/admin/creaciones',      icon: '🖼️',   title: 'Nuestras Creaciones',desc: 'Subir y eliminar fotos de la galería pública.',                                              tone: 'default', accent: '',                  span: '' },
+    { href: '/admin/ofertas',         icon: '📢',   title: 'Ventana Emergente',  desc: 'Configura el anuncio que aparece al entrar al sitio web.',                                    tone: 'banner',  accent: '',                  span: 'md:col-span-2 lg:col-span-3' },
   ];
 
   return (
@@ -52,14 +52,30 @@ export default function DashboardPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sections.map((s) => (
-            <Link key={s.href} href={s.href} className="block">
-              <div className="bg-white p-8 rounded-lg shadow hover:shadow-lg transition cursor-pointer group">
-                <div className="text-4xl mb-4 group-hover:scale-110 transition inline-block">{s.icon}</div>
-                <h2 className="text-xl font-bold text-mavic-black mb-2">{s.title}</h2>
-                <p className="text-gray-600 text-sm">{s.desc}</p>
-              </div>
+            <Link key={s.href} href={s.href} className={`block h-full ${s.span}`}>
+              {s.tone === 'banner' ? (
+                <div className="bg-white p-6 rounded-lg shadow hover:shadow-lg transition cursor-pointer group h-full flex items-center gap-5">
+                  <div className="text-4xl flex-shrink-0 group-hover:scale-110 transition">{s.icon}</div>
+                  <div>
+                    <h2 className="text-lg font-bold text-mavic-black mb-1">{s.title}</h2>
+                    <p className="text-gray-600 text-sm">{s.desc}</p>
+                  </div>
+                </div>
+              ) : s.tone === 'hero' ? (
+                <div className={`bg-white p-10 rounded-lg shadow hover:shadow-lg transition cursor-pointer group h-full border-l-4 ${s.accent}`}>
+                  <div className="text-5xl mb-4 group-hover:scale-110 transition inline-block">{s.icon}</div>
+                  <h2 className="text-2xl font-bold text-mavic-black mb-2">{s.title}</h2>
+                  <p className="text-gray-600 text-sm">{s.desc}</p>
+                </div>
+              ) : (
+                <div className="bg-white p-8 rounded-lg shadow hover:shadow-lg transition cursor-pointer group h-full">
+                  <div className="text-4xl mb-4 group-hover:scale-110 transition inline-block">{s.icon}</div>
+                  <h2 className="text-xl font-bold text-mavic-black mb-2">{s.title}</h2>
+                  <p className="text-gray-600 text-sm">{s.desc}</p>
+                </div>
+              )}
             </Link>
           ))}
         </div>
