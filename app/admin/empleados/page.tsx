@@ -499,48 +499,45 @@ export default function EmpleadosPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-12">
-        {/* Controls */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="grid md:grid-cols-5 gap-4 items-end">
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
-                {empIdx >= 0 && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${empColor.dot}`} />}
-                Empleada
-              </label>
-              <select value={employee} onChange={(e) => { flushIfDirty(); setEmployee(e.target.value); }}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                disabled={employees.length === 0}>
-                {employees.length === 0
-                  ? <option>Sin empleadas registradas</option>
-                  : employees.map((e) => <option key={e.id} value={e.display_name}>{e.display_name}</option>)
-                }
-              </select>
+        {/* Datos del mes */}
+        <div className={`bg-white rounded-lg shadow-lg p-6 mb-8 border-l-4 ${empColor.borderL}`}>
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 mb-2">
+                  {empIdx >= 0 && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${empColor.dot}`} />}
+                  Empleada
+                </label>
+                <select value={employee} onChange={(e) => { flushIfDirty(); setEmployee(e.target.value); }}
+                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                  disabled={employees.length === 0}>
+                  {employees.length === 0
+                    ? <option>Sin empleadas registradas</option>
+                    : employees.map((e) => <option key={e.id} value={e.display_name}>{e.display_name}</option>)
+                  }
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Mes</label>
+                <select value={month} onChange={(e) => { flushIfDirty(); setMonth(parseInt(e.target.value)); }}
+                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
+                  {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Año</label>
+                <select value={year} onChange={(e) => { flushIfDirty(); setYear(parseInt(e.target.value)); }}
+                  className="px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
+                  {years.map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <p className={`text-sm text-gray-500 pb-2 transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
+                🕐 <span className="font-bold text-mavic-pink">{totalHours.toFixed(1)}h</span>{' '}
+                {expectedHours != null ? `de ${expectedHours.toFixed(1)} esperadas` : 'este mes'}
+              </p>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Mes</label>
-              <select value={month} onChange={(e) => { flushIfDirty(); setMonth(parseInt(e.target.value)); }}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
-                {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Año</label>
-              <select value={year} onChange={(e) => { flushIfDirty(); setYear(parseInt(e.target.value)); }}
-                className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
-                {years.map((y) => <option key={y} value={y}>{y}</option>)}
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <button onClick={handleSave} disabled={saving || isLocked}
-                className="flex-1 bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
-              <button onClick={handleGeneratePdf} disabled={generatingPdf || employees.length === 0}
-                className="flex-1 bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
-                {generatingPdf ? 'Generando...' : 'Generar PDF'}
-              </button>
-            </div>
-            <div>
+
+            <div className="flex flex-col items-end gap-2">
               {saveMsg ? (
                 <p className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {saveMsg}
@@ -548,6 +545,16 @@ export default function EmpleadosPage() {
               ) : dirty && !saving ? (
                 <p className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</p>
               ) : null}
+              <div className="flex gap-2">
+                <button onClick={handleSave} disabled={saving || isLocked}
+                  className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button onClick={handleGeneratePdf} disabled={generatingPdf || employees.length === 0}
+                  className="bg-mavic-gold hover:bg-mavic-gold/90 text-white font-bold py-2 px-4 rounded-lg transition disabled:opacity-50">
+                  {generatingPdf ? 'Generando...' : 'Generar PDF'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -555,21 +562,10 @@ export default function EmpleadosPage() {
         {/* Content area — fades on employee/month change */}
         <div className={`transition-opacity duration-150 ${fading ? 'opacity-0' : 'opacity-100'}`}>
 
-        {/* Stats */}
-        <div className="mb-8">
-          <div className={`bg-white p-6 rounded-lg shadow border-l-4 ${empColor.borderL}`}>
-            <p className="text-gray-600 text-sm font-semibold mb-2">HORAS TRABAJADAS</p>
-            <p className="text-3xl font-bold text-mavic-pink">{totalHours.toFixed(1)}</p>
-            <p className="text-gray-500 text-xs mt-2">
-              {expectedHours != null ? `de ${expectedHours.toFixed(1)} esperadas` : 'horas este mes'}
-            </p>
-          </div>
-        </div>
-
-        {/* Signature status */}
-        <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-          <div className="flex items-center justify-between mb-5">
-            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Firmas del mes</h3>
+        {/* Firmas y gestoría */}
+        <div className={`bg-white rounded-lg shadow-lg p-6 mb-8 border-l-4 ${empColor.borderL}`}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Firmas y gestoría</h3>
             <button
               onClick={() => load()}
               className="text-xs text-gray-400 hover:text-mavic-pink font-semibold transition"
@@ -578,51 +574,31 @@ export default function EmpleadosPage() {
             </button>
           </div>
 
-          <div className="grid sm:grid-cols-2 gap-4 mb-5">
-            {/* Employee */}
-            <div className={`rounded-xl border-2 p-4 transition-colors ${sigState.employee_signature_path ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">{employee}</p>
-              {sigState.employee_signature_path ? (
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
-                    <span className="text-sm font-bold text-green-700">Firmado</span>
-                  </div>
-                  {sigState.employee_signed_at && (
-                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employee_signed_at)}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
-                </div>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            {/* Employee pill */}
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              sigState.employee_signature_path ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sigState.employee_signature_path ? 'bg-green-500' : 'bg-gray-300'}`} />
+              {employee}
+              <span className="font-normal text-xs opacity-80">
+                — {sigState.employee_signature_path && sigState.employee_signed_at ? fmtTs(sigState.employee_signed_at) : 'pendiente'}
+              </span>
+            </span>
 
-            {/* Employer */}
-            <div className={`rounded-xl border-2 p-4 transition-colors ${sigState.employer_signature_path ? 'border-green-200 bg-green-50/40' : 'border-gray-100 bg-gray-50/60'}`}>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Empresa</p>
-              {sigState.employer_signature_path ? (
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">✓</span>
-                    <span className="text-sm font-bold text-green-700">Firmado</span>
-                  </div>
-                  {sigState.employer_signed_at && (
-                    <p className="text-xs text-gray-400 mt-1 ml-7">{fmtTs(sigState.employer_signed_at)}</p>
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
-                  <span className="text-sm font-semibold text-gray-400">Pendiente de firma</span>
-                </div>
-              )}
-            </div>
+            {/* Employer pill */}
+            <span className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-semibold ${
+              sigState.employer_signature_path ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-400'
+            }`}>
+              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${sigState.employer_signature_path ? 'bg-green-500' : 'bg-gray-300'}`} />
+              Empresa
+              <span className="font-normal text-xs opacity-80">
+                — {sigState.employer_signature_path && sigState.employer_signed_at ? fmtTs(sigState.employer_signed_at) : 'pendiente'}
+              </span>
+            </span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-gray-100">
             {(sigMsg || sendMsg) && (
               <span className={`text-sm font-semibold ${(sigMsg || sendMsg).startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                 {sigMsg || sendMsg}
@@ -793,16 +769,15 @@ export default function EmpleadosPage() {
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
                   <td className="px-4 py-3 text-mavic-black" colSpan={5}>TOTAL DEL MES</td>
                   <td className="px-3 py-3 text-center text-mavic-pink text-lg">{totalHours.toFixed(1)}</td>
-                  <td className="px-3 py-3 text-gray-500 text-sm">
-                    {expectedHours != null
-                      ? totalHours > expectedHours
-                        ? `+${(totalHours - expectedHours).toFixed(1)}h extras`
-                        : totalHours < expectedHours
-                        ? `${(expectedHours - totalHours).toFixed(1)}h pendientes`
-                        : 'Completo ✓'
-                      : ''}
+                  <td className="px-3 py-3 text-right" colSpan={2}>
+                    <button
+                      onClick={handleSave}
+                      disabled={saving || isLocked}
+                      className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-1.5 px-5 rounded-lg text-sm disabled:opacity-50 transition"
+                    >
+                      {saving ? 'Guardando...' : 'Guardar'}
+                    </button>
                   </td>
-                  <td />
                 </tr>
               </tbody>
             </table>
@@ -821,24 +796,6 @@ export default function EmpleadosPage() {
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink resize-none disabled:bg-gray-50 disabled:text-gray-400"
           />
           <p className="text-xs text-gray-400 mt-1">Se guarda junto con el registro y se incluye en el PDF generado.</p>
-        </div>
-
-        {/* Bottom save bar */}
-        <div className="mt-4 flex items-center justify-end gap-4">
-          {saveMsg ? (
-            <p className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-              {saveMsg}
-            </p>
-          ) : dirty && !saving ? (
-            <p className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</p>
-          ) : null}
-          <button
-            onClick={handleSave}
-            disabled={saving || isLocked}
-            className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold py-2 px-6 rounded-lg transition disabled:opacity-50"
-          >
-            {saving ? 'Guardando...' : 'Guardar'}
-          </button>
         </div>
 
         </div> {/* end fade wrapper */}
