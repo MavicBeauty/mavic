@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import ChangelogBell from '@/components/ChangelogBell';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -39,11 +40,14 @@ export default function DashboardPage() {
             <h1 className="text-3xl font-bold">Panel de Control</h1>
             <p className="text-white/80 mt-1">{userEmail || 'Mavic Beauty & Nails'}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2 rounded-lg transition text-sm">
-            Cerrar sesión
-          </button>
+          <div className="flex items-center gap-2">
+            <ChangelogBell />
+            <button
+              onClick={handleLogout}
+              className="bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2 rounded-lg transition text-sm">
+              Cerrar sesión
+            </button>
+          </div>
         </div>
       </header>
 
