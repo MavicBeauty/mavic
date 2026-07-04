@@ -91,7 +91,6 @@ export default function EmpleadaHorarioPage() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [days, setDays] = useState<DayEntry[]>(emptyDays());
-  const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [loading, setLoading] = useState(true);
@@ -173,7 +172,6 @@ export default function EmpleadaHorarioPage() {
       employee_signed_at: row?.employee_signed_at ?? null,
       employer_signed_at: row?.employer_signed_at ?? null,
     });
-    setEditMode(false);
   }, [displayName, month, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { load(); }, [load]);
@@ -477,41 +475,23 @@ export default function EmpleadaHorarioPage() {
                 {generatingPdf ? 'Generando...' : 'Descargar PDF'}
               </button>
               {canEdit && (
-                <>
-                  <button
-                    onClick={() => setEditMode(!editMode)}
-                    className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
-                      editMode
-                        ? 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
-                        : 'bg-mavic-pink/10 text-mavic-pink border-mavic-pink/20 hover:bg-mavic-pink/20'
-                    }`}
-                  >
-                    {editMode ? 'Modo lectura' : 'Editar'}
-                  </button>
-                  {editMode && (
-                    <button
-                      onClick={handleSave}
-                      disabled={saving}
-                      className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
-                    >
-                      {saving ? 'Guardando...' : 'Guardar'}
-                    </button>
-                  )}
-                </>
+                <button
+                  onClick={handleSave}
+                  disabled={saving}
+                  className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
+                >
+                  {saving ? 'Guardando...' : 'Guardar'}
+                </button>
               )}
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-3">
-            {isSigned
-              ? 'Mes firmado — no se pueden modificar los datos'
-              : employerSigned
-                ? 'La empresa ha firmado y bloqueado este registro — fírmalo para confirmarlo'
-                : editMode
-                  ? 'Modo edición activo — recuerda guardar los cambios'
-                  : profile?.timesheet_permission === 'edit'
-                    ? 'Modo lectura — pulsa "Editar" para modificar'
-                    : 'Solo lectura'}
-          </p>
+          {(isSigned || employerSigned) && (
+            <p className="text-xs text-gray-400 mt-3">
+              {isSigned
+                ? 'Mes firmado — no se pueden modificar los datos'
+                : 'La empresa ha firmado y bloqueado este registro — fírmalo para confirmarlo'}
+            </p>
+          )}
         </div>
 
         {/* Signature status panel */}
@@ -632,7 +612,7 @@ export default function EmpleadaHorarioPage() {
 
                       {(['entry1','exit1','entry2','exit2'] as const).map(field => (
                         <td key={field} className="px-2 py-1.5">
-                          {editMode && !isFullDayAbsence ? (
+                          {canEdit && !isFullDayAbsence ? (
                             <input
                               type="time"
                               value={day[field]}
@@ -656,7 +636,7 @@ export default function EmpleadaHorarioPage() {
                       </td>
 
                       <td className="px-2 py-1.5">
-                        {editMode ? (
+                        {canEdit ? (
                           <select
                             value={day.absence}
                             onChange={e => handleDayChange(day.day, 'absence', e.target.value)}
