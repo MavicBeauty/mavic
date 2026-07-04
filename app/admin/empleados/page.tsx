@@ -66,10 +66,12 @@ export default function EmpleadosPage() {
   const [sending, setSending] = useState(false);
   const [sendMsg, setSendMsg] = useState('');
   const [showGestoriaConfirm, setShowGestoriaConfirm] = useState(false);
+  const [showNotBothSignedWarning, setShowNotBothSignedWarning] = useState(false);
   const [gestoriaTargets, setGestoriaTargets] = useState<string[]>([]);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [expandedExtraRows, setExpandedExtraRows] = useState<Set<number>>(new Set());
   const [fading, setFading] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const [gestoriaSentAt, setGestoriaSentAt] = useState<string | null>(null);
   const [changeRequestedAt, setChangeRequestedAt] = useState<string | null>(null);
@@ -113,6 +115,7 @@ export default function EmpleadosPage() {
     setGestoriaSentAt(row?.gestoria_sent_at ?? null);
     setChangeRequestedAt(row?.change_requested_at ?? null);
     setFading(false);
+    setDirty(false);
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -125,6 +128,7 @@ export default function EmpleadosPage() {
 
   const handleDayChange = (day: number, field: string, value: string) => {
     setDays(days.map((d) => d.day === day ? { ...d, [field]: value } : d));
+    setDirty(true);
   };
 
   const calcDailyHours = (d: DayEntry): number => {
@@ -146,8 +150,10 @@ export default function EmpleadosPage() {
   };
 
   const totalHours = days.filter((d) => d.day <= daysInMonth).reduce((s, d) => s + calcDailyHours(d), 0);
-  const bothSigned = !!(sigState.employee_signature_path && sigState.employer_signature_path);
-  const isLocked = !!sigState.employee_signature_path; // locked once employee signs, regardless of employer sig
+  const employeeSigned = !!sigState.employee_signature_path;
+  const employerSigned = !!sigState.employer_signature_path;
+  const bothSigned = employeeSigned && employerSigned;
+  const isLocked = employeeSigned || employerSigned; // locked as soon as either party signs
   const empIdx = employees.findIndex(e => e.display_name === employee);
   const empColor = EMPLOYEE_COLORS[Math.max(0, empIdx) % EMPLOYEE_COLORS.length];
   // expectedHours will be derived from weekly_hours once the formula is decided
@@ -167,8 +173,36 @@ export default function EmpleadosPage() {
     }, { onConflict: 'employee_name,period_month,period_year' });
 
     setSaving(false);
-    setSaveMsg(error ? `Error: ${error.message}` : '✓ Guardado');
-    setTimeout(() => setSaveMsg(''), 3000);
+    if (error) {
+      setSaveMsg(`Error: ${error.message}`);
+    } else {
+      setDirty(false);
+      setSaveMsg('✓ Guardado');
+      setTimeout(() => setSaveMsg(''), 3000);
+    }
+  };
+
+  // Idle autosave: fires 5s after the last edit, only if something actually changed
+  // and it's safe to save (not locked, not already mid-save).
+  useEffect(() => {
+    if (!dirty || isLocked || saving) return;
+    const timer = setTimeout(() => { handleSave(); }, 5000);
+    return () => clearTimeout(timer);
+  }, [days, observations, dirty, isLocked, saving]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Background flush for switching employee/month/year mid-edit, before the 5s idle
+  // autosave would have fired. Fire-and-forget on purpose — the switch shouldn't wait
+  // on a network round-trip, and this is a safety net, not the primary save path.
+  const flushIfDirty = () => {
+    if (!dirty || isLocked) return;
+    supabase.from('timesheets').upsert({
+      employee_name: employee,
+      period_month: month,
+      period_year: year,
+      day_entries: days,
+      observations: observations || null,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'employee_name,period_month,period_year' });
   };
 
   const handlePrint = () => window.print();
@@ -329,6 +363,14 @@ export default function EmpleadosPage() {
     setRequestingChange(false);
   };
 
+  const handleGestoriaButtonClick = () => {
+    if (!bothSigned) {
+      setShowNotBothSignedWarning(true);
+      return;
+    }
+    handleGestoriaClick();
+  };
+
   const handleGestoriaClick = async () => {
     setLoadingTargets(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -378,11 +420,36 @@ export default function EmpleadosPage() {
         </div>
       )}
 
+      {showNotBothSignedWarning && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
+            <div className="flex items-start gap-3 mb-4">
+              <span className="text-2xl flex-shrink-0">⚠️</span>
+              <div>
+                <h3 className="text-base font-bold text-mavic-black mb-1">Faltan firmas</h3>
+                <p className="text-sm text-gray-600">
+                  Este registro debe estar firmado por <strong>{employee}</strong> y por la <strong>empresa</strong> antes de poder enviarlo a la gestoría.
+                </p>
+                <p className="text-xs text-gray-400 mt-2">
+                  Falta: {[!employeeSigned && employee, !employerSigned && 'Empresa'].filter(Boolean).join(' y ')}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowNotBothSignedWarning(false)}
+              className="w-full px-4 py-2 text-sm font-bold text-white bg-mavic-pink hover:bg-mavic-pink/90 rounded-lg transition"
+            >
+              Entendido
+            </button>
+          </div>
+        </div>
+      )}
+
       {showSignPad && (
         <SignaturePad
           title="Firmar como empresa"
           subtitle={`${MONTHS[month - 1]} ${year} — ${employee}`}
-          notice="En cuanto la empleada firme, el registro quedará bloqueado para edición. Si ya ha firmado, al confirmar aquí ya no se podrán hacer cambios. Asegúrate de que todos los datos son correctos antes de continuar."
+          notice="Al confirmar, el registro quedará bloqueado para edición (para ti y para la empleada) hasta que ella firme o anules tu firma. Asegúrate de que todos los datos son correctos antes de continuar."
           onConfirm={handleEmployerSign}
           onCancel={() => setShowSignPad(false)}
         />
@@ -440,7 +507,7 @@ export default function EmpleadosPage() {
                 {empIdx >= 0 && <span className={`w-2 h-2 rounded-full flex-shrink-0 ${empColor.dot}`} />}
                 Empleada
               </label>
-              <select value={employee} onChange={(e) => setEmployee(e.target.value)}
+              <select value={employee} onChange={(e) => { flushIfDirty(); setEmployee(e.target.value); }}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink"
                 disabled={employees.length === 0}>
                 {employees.length === 0
@@ -451,14 +518,14 @@ export default function EmpleadosPage() {
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Mes</label>
-              <select value={month} onChange={(e) => setMonth(parseInt(e.target.value))}
+              <select value={month} onChange={(e) => { flushIfDirty(); setMonth(parseInt(e.target.value)); }}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
                 {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">Año</label>
-              <select value={year} onChange={(e) => setYear(parseInt(e.target.value))}
+              <select value={year} onChange={(e) => { flushIfDirty(); setYear(parseInt(e.target.value)); }}
                 className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mavic-pink">
                 {years.map((y) => <option key={y} value={y}>{y}</option>)}
               </select>
@@ -474,11 +541,13 @@ export default function EmpleadosPage() {
               </button>
             </div>
             <div>
-              {saveMsg && (
+              {saveMsg ? (
                 <p className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {saveMsg}
                 </p>
-              )}
+              ) : dirty && !saving ? (
+                <p className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</p>
+              ) : null}
             </div>
           </div>
         </div>
@@ -562,8 +631,7 @@ export default function EmpleadosPage() {
             {!sigState.employer_signature_path && (
               <button
                 onClick={() => setShowSignPad(true)}
-                disabled={sigWorking || !sigState.employee_signature_path}
-                title={!sigState.employee_signature_path ? 'La empleada debe firmar primero' : undefined}
+                disabled={sigWorking}
                 className="px-5 py-2 text-sm font-bold text-white bg-gradient-to-r from-mavic-pink to-mavic-gold rounded-lg hover:shadow-lg transition disabled:opacity-40"
               >
                 {sigWorking ? 'Procesando...' : 'Firmar como empresa'}
@@ -578,16 +646,14 @@ export default function EmpleadosPage() {
                 {sigWorking ? 'Anulando...' : 'Anular firma de empresa'}
               </button>
             )}
-            {sigState.employee_signature_path && sigState.employer_signature_path && (
-              <button
-                onClick={handleGestoriaClick}
-                disabled={sending || loadingTargets}
-                className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-40"
-              >
-                {sending ? 'Enviando...' : loadingTargets ? 'Cargando...' : 'Enviar a gestoría'}
-              </button>
-            )}
-            {isLocked && !changeRequestedAt && (
+            <button
+              onClick={handleGestoriaButtonClick}
+              disabled={sending || loadingTargets || employees.length === 0}
+              className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-40"
+            >
+              {sending ? 'Enviando...' : loadingTargets ? 'Cargando...' : 'Enviar a gestoría'}
+            </button>
+            {employeeSigned && !changeRequestedAt && (
               <button
                 onClick={() => gestoriaSentAt ? setShowChangeRequestWarning(true) : handleRequestChange()}
                 disabled={requestingChange}
@@ -596,7 +662,7 @@ export default function EmpleadosPage() {
                 {requestingChange ? 'Enviando...' : 'Solicitar cambios'}
               </button>
             )}
-            {isLocked && changeRequestedAt && (
+            {employeeSigned && changeRequestedAt && (
               <span className="text-sm font-semibold text-orange-600 bg-orange-50 border border-orange-200 px-3 py-2 rounded-lg">
                 Solicitud enviada — esperando que la empleada retire su firma
               </span>
@@ -613,7 +679,11 @@ export default function EmpleadosPage() {
             </h3>
             {isLocked && (
               <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full">
-                {bothSigned ? 'Bloqueado — ambas partes han firmado' : 'Bloqueado — empleada ha firmado'}
+                {bothSigned
+                  ? 'Bloqueado — ambas partes han firmado'
+                  : employeeSigned
+                    ? 'Bloqueado — empleada ha firmado'
+                    : 'Bloqueado — empresa ha firmado, pendiente de firma de la empleada'}
               </span>
             )}
           </div>
@@ -744,7 +814,7 @@ export default function EmpleadosPage() {
           <label className="block text-sm font-bold text-gray-700 mb-2">Observaciones</label>
           <textarea
             value={observations}
-            onChange={e => setObservations(e.target.value)}
+            onChange={e => { setObservations(e.target.value); setDirty(true); }}
             rows={2}
             placeholder="Texto libre que aparecerá en el apartado de observaciones del PDF..."
             disabled={isLocked}
@@ -755,11 +825,13 @@ export default function EmpleadosPage() {
 
         {/* Bottom save bar */}
         <div className="mt-4 flex items-center justify-end gap-4">
-          {saveMsg && (
+          {saveMsg ? (
             <p className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
               {saveMsg}
             </p>
-          )}
+          ) : dirty && !saving ? (
+            <p className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</p>
+          ) : null}
           <button
             onClick={handleSave}
             disabled={saving || isLocked}

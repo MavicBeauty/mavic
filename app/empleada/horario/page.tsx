@@ -104,6 +104,7 @@ export default function EmpleadaHorarioPage() {
   const [observations, setObservations] = useState('');
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [fading, setFading] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const supabase = createClient();
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
@@ -114,7 +115,7 @@ export default function EmpleadaHorarioPage() {
 
   const isSigned = !!sigState.employee_signature_path;
   const employerSigned = !!sigState.employer_signature_path;
-  const canEdit = profile?.timesheet_permission === 'edit' && !isSigned;
+  const canEdit = profile?.timesheet_permission === 'edit' && !isSigned && !employerSigned;
   const empColorIdx = laborInfo ? parseInt(laborInfo.id[0], 16) % EMPLOYEE_COLORS.length : 0;
   const empColor = EMPLOYEE_COLORS[empColorIdx];
 
@@ -165,6 +166,7 @@ export default function EmpleadaHorarioPage() {
     setObservations(row?.observations ?? '');
     setChangeRequestedAt(row?.change_requested_at ?? null);
     setFading(false);
+    setDirty(false);
     setSigState({
       employee_signature_path: row?.employee_signature_path ?? null,
       employer_signature_path: row?.employer_signature_path ?? null,
@@ -178,6 +180,7 @@ export default function EmpleadaHorarioPage() {
 
   const handleDayChange = (day: number, field: string, value: string) => {
     setDays(days.map(d => d.day === day ? { ...d, [field]: value } : d));
+    setDirty(true);
   };
 
   const handleSave = async () => {
@@ -192,8 +195,35 @@ export default function EmpleadaHorarioPage() {
       updated_at: new Date().toISOString(),
     }, { onConflict: 'employee_name,period_month,period_year' });
     setSaving(false);
-    setSaveMsg(error ? `Error: ${error.message}` : '✓ Guardado');
-    setTimeout(() => setSaveMsg(''), 3000);
+    if (error) {
+      setSaveMsg(`Error: ${error.message}`);
+    } else {
+      setDirty(false);
+      setSaveMsg('✓ Guardado');
+      setTimeout(() => setSaveMsg(''), 3000);
+    }
+  };
+
+  // Idle autosave: fires 5s after the last edit, only if something actually changed
+  // and it's safe to save (permitted to edit, not locked, not already mid-save).
+  useEffect(() => {
+    if (!dirty || !canEdit || saving) return;
+    const timer = setTimeout(() => { handleSave(); }, 5000);
+    return () => clearTimeout(timer);
+  }, [days, dirty, canEdit, saving]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Background flush for switching month/year mid-edit, before the 5s idle autosave
+  // would have fired. Fire-and-forget on purpose — the switch shouldn't wait on a
+  // network round-trip, and this is a safety net, not the primary save path.
+  const flushIfDirty = () => {
+    if (!dirty || !canEdit) return;
+    supabase.from('timesheets').upsert({
+      employee_name: displayName,
+      period_month: month,
+      period_year: year,
+      day_entries: days,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'employee_name,period_month,period_year' });
   };
 
   const handleSign = async (dataUrl: string) => {
@@ -413,7 +443,7 @@ export default function EmpleadaHorarioPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
                 <select
                   value={month}
-                  onChange={e => setMonth(parseInt(e.target.value))}
+                  onChange={e => { flushIfDirty(); setMonth(parseInt(e.target.value)); }}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
                 >
                   {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
@@ -423,7 +453,7 @@ export default function EmpleadaHorarioPage() {
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Año</label>
                 <select
                   value={year}
-                  onChange={e => setYear(parseInt(e.target.value))}
+                  onChange={e => { flushIfDirty(); setYear(parseInt(e.target.value)); }}
                   className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
                 >
                   {years.map(y => <option key={y} value={y}>{y}</option>)}
@@ -432,11 +462,13 @@ export default function EmpleadaHorarioPage() {
             </div>
 
             <div className="flex gap-2 items-center flex-wrap">
-              {saveMsg && (
+              {saveMsg ? (
                 <span className={`text-sm font-semibold ${saveMsg.startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
                   {saveMsg}
                 </span>
-              )}
+              ) : dirty && !saving ? (
+                <span className="text-sm text-gray-400">Cambios sin guardar — se guardará solo en unos segundos</span>
+              ) : null}
               <button
                 onClick={handleGeneratePdf}
                 disabled={generatingPdf || !laborInfo}
@@ -472,11 +504,13 @@ export default function EmpleadaHorarioPage() {
           <p className="text-xs text-gray-400 mt-3">
             {isSigned
               ? 'Mes firmado — no se pueden modificar los datos'
-              : editMode
-                ? 'Modo edición activo — recuerda guardar los cambios'
-                : profile?.timesheet_permission === 'edit'
-                  ? 'Modo lectura — pulsa "Editar" para modificar'
-                  : 'Solo lectura'}
+              : employerSigned
+                ? 'La empresa ha firmado y bloqueado este registro — fírmalo para confirmarlo'
+                : editMode
+                  ? 'Modo edición activo — recuerda guardar los cambios'
+                  : profile?.timesheet_permission === 'edit'
+                    ? 'Modo lectura — pulsa "Editar" para modificar'
+                    : 'Solo lectura'}
           </p>
         </div>
 
