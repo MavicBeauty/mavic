@@ -202,6 +202,7 @@ export default function EmpleadosPerfilesPage() {
   const handleResendInvite = async (employeeId: string) => {
     const acc = portalAccounts[employeeId];
     if (!acc) return;
+    if (!confirm(`¿Reenviar el email de confirmación a ${acc.email}?`)) return;
     setPortalLoading(l => ({ ...l, [employeeId]: true }));
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch('/api/admin/employee-account', {
