@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-07-caja-b-nueva',
+    date: '2026-07-07',
+    title: 'Nuevo: registro de Caja B en el portal',
+    description: 'Dentro del portal de empleadas (donde se registra el horario) hay ahora una sección "Caja B" para anotar cada entrada o salida de ese efectivo: fecha, importe, categoría (pago a Yuranny, pago a Angelica, nómina de los socios, gastos varios u otro) y una nota si hace falta. Arriba se ve el saldo actual, y debajo la lista de movimientos del mes, filtrable por mes y año.',
+    why: 'Para dejar de depender de la memoria a la hora de saber cuánto hay en la Caja B y de dónde salió cada pago — todo el que tiene acceso al portal (José, María, Angelica, Kelly, Keren) puede anotar un movimiento y todos ven el mismo saldo.',
+    tag: 'nuevo',
+  },
+  {
     id: '2026-07-06-invitacion-empleadas-arreglada',
     date: '2026-07-06',
     title: 'Arreglado: el correo para activar la cuenta de una empleada',

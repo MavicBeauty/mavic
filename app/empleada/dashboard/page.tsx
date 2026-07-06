@@ -133,6 +133,28 @@ export default function EmpleadaDashboardPage() {
           </div>
         </Link>
 
+        <Link
+          href="/empleada/caja-b"
+          className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-full bg-mavic-pink/10 flex items-center justify-center">
+              <svg className="w-6 h-6 text-mavic-pink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V6m0 2v8m0 0v2m0-2c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-mavic-black group-hover:text-mavic-pink transition">
+                Caja B
+              </h2>
+              <p className="text-gray-500 text-sm">Registra movimientos y consulta el saldo</p>
+            </div>
+            <div className="ml-auto text-gray-300 group-hover:text-mavic-pink transition text-xl font-light">
+              →
+            </div>
+          </div>
+        </Link>
+
         {/* Password change */}
         <div className="bg-white rounded-2xl shadow p-6">
           <button
