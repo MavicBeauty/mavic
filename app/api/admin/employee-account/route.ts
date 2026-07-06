@@ -21,17 +21,21 @@ export async function GET(req: NextRequest) {
   const caller = await verifyAdmin(req);
   if (!caller) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const employeeId = req.nextUrl.searchParams.get('employeeId');
-  if (!employeeId) return NextResponse.json({ error: 'Missing employeeId' }, { status: 400 });
-
-  const { data } = await admin
+  const { data: profiles } = await admin
     .from('profiles')
-    .select('id, email, timesheet_permission')
-    .eq('employee_labor_info_id', employeeId)
-    .eq('role', 'portal')
-    .maybeSingle();
+    .select('id, email, timesheet_permission, employee_labor_info_id')
+    .eq('role', 'portal');
 
-  return NextResponse.json({ account: data });
+  type PortalProfile = { id: string; email: string | null; timesheet_permission: string; employee_labor_info_id: string };
+
+  const accounts = await Promise.all(
+    ((profiles || []) as PortalProfile[]).map(async (p) => {
+      const { data } = await admin.auth.admin.getUserById(p.id);
+      return { ...p, confirmed: !!data.user?.email_confirmed_at };
+    })
+  );
+
+  return NextResponse.json({ accounts });
 }
 
 export async function POST(req: NextRequest) {

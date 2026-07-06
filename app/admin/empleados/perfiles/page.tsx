@@ -132,6 +132,7 @@ interface PortalAccount {
   email: string;
   timesheet_permission: 'read' | 'edit';
   employee_labor_info_id: string;
+  confirmed: boolean;
 }
 
 export default function EmpleadosPerfilesPage() {
@@ -159,17 +160,19 @@ export default function EmpleadosPerfilesPage() {
         if (data) setEmployees(data);
         setLoading(false);
       });
-    supabase
-      .from('profiles')
-      .select('id, email, timesheet_permission, employee_labor_info_id')
-      .eq('role', 'portal')
-      .then(({ data }: { data: PortalAccount[] | null }) => {
-        if (data) {
-          const map: Record<string, PortalAccount> = {};
-          data.forEach(acc => { if (acc.employee_labor_info_id) map[acc.employee_labor_info_id] = acc; });
-          setPortalAccounts(map);
-        }
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/admin/employee-account', {
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
       });
+      const json = await res.json();
+      const data = json.accounts as PortalAccount[] | undefined;
+      if (data) {
+        const map: Record<string, PortalAccount> = {};
+        data.forEach(acc => { if (acc.employee_labor_info_id) map[acc.employee_labor_info_id] = acc; });
+        setPortalAccounts(map);
+      }
+    })();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSendInvite = async (employeeId: string) => {
@@ -191,7 +194,7 @@ export default function EmpleadosPerfilesPage() {
     } else {
       setPortalAccounts(pa => ({
         ...pa,
-        [employeeId]: { id: json.userId, email, timesheet_permission: 'read', employee_labor_info_id: employeeId },
+        [employeeId]: { id: json.userId, email, timesheet_permission: 'read', employee_labor_info_id: employeeId, confirmed: false },
       }));
       setPortalMsg(m => ({ ...m, [employeeId]: '✓ Invitación enviada' }));
     }
@@ -445,6 +448,13 @@ export default function EmpleadosPerfilesPage() {
                                 ? 'Lectura + Edición'
                                 : 'Solo lectura'}
                             </span>
+                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                              portalAccounts[emp.id].confirmed
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-amber-100 text-amber-700'
+                            }`}>
+                              {portalAccounts[emp.id].confirmed ? '✓ Confirmada' : 'Pendiente de confirmar'}
+                            </span>
                           </div>
                           <div className="flex flex-wrap gap-2 items-center">
                             <button
@@ -456,14 +466,18 @@ export default function EmpleadosPerfilesPage() {
                                 ? 'Cambiar a solo lectura'
                                 : 'Dar permiso de edición'}
                             </button>
-                            <span className="text-gray-300">|</span>
-                            <button
-                              onClick={() => handleResendInvite(emp.id)}
-                              disabled={portalLoading[emp.id]}
-                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold disabled:opacity-50 transition"
-                            >
-                              Reenviar confirmación
-                            </button>
+                            {!portalAccounts[emp.id].confirmed && (
+                              <>
+                                <span className="text-gray-300">|</span>
+                                <button
+                                  onClick={() => handleResendInvite(emp.id)}
+                                  disabled={portalLoading[emp.id]}
+                                  className="text-xs text-gray-500 hover:text-mavic-pink font-semibold disabled:opacity-50 transition"
+                                >
+                                  Reenviar confirmación
+                                </button>
+                              </>
+                            )}
                             <span className="text-gray-300">|</span>
                             <button
                               onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'email' ? null : { field: 'email', val: portalAccounts[emp.id].email || '', val2: '' } }))}
