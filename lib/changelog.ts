@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-06-invitacion-empleadas-arreglada',
+    date: '2026-07-06',
+    title: 'Arreglado: el correo para activar la cuenta de una empleada',
+    description: 'El correo que recibe una empleada para crear su contraseña y entrar al portal ahora tiene un diseño más cuidado (con el logo de Mavic) y el enlace dura 24 horas de verdad. Si hace falta reenviarlo, hay un botón nuevo de "Reenviar confirmación" en la ficha de la empleada.',
+    why: 'Al dar de alta a dos empleadas, el enlace del correo aparecía como caducado aunque se abriera rápido: el correo decía "24 horas" pero en realidad caducaba en solo 1 hora. Tampoco había forma de reenviarlo, solo de cambiar el email de la cuenta.',
+    tag: 'arreglo',
+  },
+  {
     id: '2026-07-04-gestoria-aviso-firmas',
     date: '2026-07-04',
     title: 'El botón de enviar a la gestoría avisa si falta alguna firma',

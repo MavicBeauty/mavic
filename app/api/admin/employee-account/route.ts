@@ -52,8 +52,20 @@ export async function POST(req: NextRequest) {
   const protocol = host.includes('localhost') ? 'http' : 'https';
   const redirectTo = `${protocol}://${host}/empleada/set-password`;
 
+  const { data: existing } = await admin
+    .from('profiles')
+    .select('id')
+    .eq('employee_labor_info_id', employeeId)
+    .eq('role', 'portal')
+    .maybeSingle();
+
   const { data: invite, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo });
   if (inviteErr) return NextResponse.json({ error: inviteErr.message }, { status: 500 });
+
+  // Account already exists — this is a resend, not a first-time setup. Skip the profile insert.
+  if (existing) {
+    return NextResponse.json({ ok: true, userId: existing.id });
+  }
 
   const { error: profileErr } = await admin.from('profiles').insert({
     id: invite.user.id,

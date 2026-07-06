@@ -199,6 +199,25 @@ export default function EmpleadosPerfilesPage() {
     setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
   };
 
+  const handleResendInvite = async (employeeId: string) => {
+    const acc = portalAccounts[employeeId];
+    if (!acc) return;
+    setPortalLoading(l => ({ ...l, [employeeId]: true }));
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/admin/employee-account', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ employeeId, email: acc.email }),
+    });
+    const json = await res.json();
+    setPortalMsg(m => ({ ...m, [employeeId]: json.error ? `Error: ${json.error}` : '✓ Confirmación reenviada' }));
+    setPortalLoading(l => ({ ...l, [employeeId]: false }));
+    setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
+  };
+
   const handleTogglePermission = async (employeeId: string) => {
     const acc = portalAccounts[employeeId];
     if (!acc) return;
@@ -435,6 +454,14 @@ export default function EmpleadosPerfilesPage() {
                               {portalAccounts[emp.id].timesheet_permission === 'edit'
                                 ? 'Cambiar a solo lectura'
                                 : 'Dar permiso de edición'}
+                            </button>
+                            <span className="text-gray-300">|</span>
+                            <button
+                              onClick={() => handleResendInvite(emp.id)}
+                              disabled={portalLoading[emp.id]}
+                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold disabled:opacity-50 transition"
+                            >
+                              Reenviar confirmación
                             </button>
                             <span className="text-gray-300">|</span>
                             <button
