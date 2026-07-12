@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import VentasPanel from '@/components/VentasPanel';
 
 interface Movimiento {
   id: string;
@@ -25,6 +26,7 @@ interface RegistroPanelProps {
   homeHref: string;
   loginHref: string;
   configHref?: string;
+  isAdmin?: boolean;
 }
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -39,12 +41,13 @@ function fmtFecha(fecha: string) {
   return `${d}/${m}/${y}`;
 }
 
-export default function RegistroPanel({ homeHref, loginHref, configHref }: RegistroPanelProps) {
+export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin = false }: RegistroPanelProps) {
   const router = useRouter();
   const supabase = createClient();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState<'movimientos' | 'servicios'>('movimientos');
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -165,7 +168,35 @@ export default function RegistroPanel({ homeHref, loginHref, configHref }: Regis
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6">
+      <main className={`${tab === 'servicios' ? 'max-w-5xl' : 'max-w-3xl'} mx-auto px-4 py-6`}>
+        {/* Pestañas */}
+        <div className="flex gap-2 mb-5">
+          <button
+            onClick={() => setTab('movimientos')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+              tab === 'movimientos'
+                ? 'bg-mavic-pink text-white shadow'
+                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
+            }`}
+          >
+            Movimientos
+          </button>
+          <button
+            onClick={() => setTab('servicios')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+              tab === 'servicios'
+                ? 'bg-mavic-pink text-white shadow'
+                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
+            }`}
+          >
+            Servicios vendidos
+          </button>
+        </div>
+
+        {tab === 'servicios' && profile ? (
+          <VentasPanel profile={profile} isAdmin={isAdmin} />
+        ) : (
+          <>
         {/* Saldo */}
         <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-emerald-400">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo actual</p>
@@ -334,6 +365,8 @@ export default function RegistroPanel({ homeHref, loginHref, configHref }: Regis
             </table>
           </div>
         </div>
+          </>
+        )}
       </main>
     </div>
   );

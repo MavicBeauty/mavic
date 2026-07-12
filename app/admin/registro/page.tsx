@@ -8,6 +8,7 @@ export default function AdminRegistroPage() {
       homeHref="/admin/dashboard"
       loginHref="/admin/login"
       configHref="/admin/registro/config"
+      isAdmin
     />
   );
 }
