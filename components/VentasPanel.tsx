@@ -16,6 +16,8 @@ interface Venta {
   nota: string | null;
   quien_nombre: string;
   liquidacion_id: string | null;
+  metodo_pago: 'efectivo' | 'datafono';
+  en_booksy: boolean;
   created_at: string;
 }
 
@@ -103,6 +105,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   const [precio, setPrecio] = useState('');
   const [empleadaId, setEmpleadaId] = useState('');
   const [pct, setPct] = useState('');
+  const [metodoPago, setMetodoPago] = useState<'efectivo' | 'datafono'>('efectivo');
+  const [enBooksy, setEnBooksy] = useState(false);
   const [nota, setNota] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -120,7 +124,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     const [ventasRes, liqRes, prodRes, empRes] = await Promise.all([
       supabase
         .from('registro_ventas')
-        .select('id, fecha, producto_nombre, precio, empleada_id, empleada_nombre, comision_pct, parte_empleada, parte_negocio, nota, quien_nombre, liquidacion_id, created_at')
+        .select('id, fecha, producto_nombre, precio, empleada_id, empleada_nombre, comision_pct, parte_empleada, parte_negocio, nota, quien_nombre, liquidacion_id, metodo_pago, en_booksy, created_at')
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
       supabase
@@ -218,6 +222,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
       parte_empleada: parteEmpleadaPreview,
       parte_negocio: parteNegocioPreview,
       nota: nota.trim() || null,
+      metodo_pago: metodoPago,
+      en_booksy: enBooksy,
       quien_registro: profile.id,
       quien_nombre: profile.name,
     });
@@ -227,6 +233,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     setProductoId('');
     setPrecio('');
     setNota('');
+    setMetodoPago('efectivo');
+    setEnBooksy(false);
     load();
   };
 
@@ -410,6 +418,62 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
               <input type="number" step="0.01" min="0.01" value={precio} onChange={e => setPrecio(e.target.value)} required placeholder="0,00" className={`w-24 ${inputCls}`} />
             </div>
           </div>
+          <div className="flex flex-wrap gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">¿Cómo se cobró?</label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setMetodoPago('efectivo')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                    metodoPago === 'efectivo'
+                      ? 'bg-green-50 border-green-300 text-green-700'
+                      : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  💶 Efectivo
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMetodoPago('datafono')}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                    metodoPago === 'datafono'
+                      ? 'bg-blue-50 border-blue-300 text-blue-700'
+                      : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  💳 Datáfono
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">¿Está en Booksy?</label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setEnBooksy(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                    enBooksy
+                      ? 'bg-purple-50 border-purple-300 text-purple-700'
+                      : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  Sí
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEnBooksy(false)}
+                  className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                    !enBooksy
+                      ? 'bg-gray-100 border-gray-300 text-gray-700'
+                      : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  No
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Empleada</label>
@@ -496,6 +560,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Servicio</th>
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Empleada</th>
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">Precio</th>
+                <th className="px-3 py-3 text-left font-semibold text-gray-700">Pago</th>
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">%</th>
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">Su parte</th>
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">Negocio</th>
@@ -506,7 +571,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
             <tbody>
               {ventasOrdenadas.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 10 : 9} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 11 : 10} className="px-4 py-8 text-center text-gray-400">
                     No hay servicios registrados este mes.
                   </td>
                 </tr>
@@ -533,6 +598,14 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                     </td>
                     <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>
                     <td className="px-3 py-2 text-right text-gray-700">{fmtEuros(v.precio)} €</td>
+                    <td className="px-3 py-2 whitespace-nowrap">
+                      <span className={`text-xs font-semibold ${v.metodo_pago === 'datafono' ? 'text-blue-700' : 'text-green-700'}`}>
+                        {v.metodo_pago === 'datafono' ? '💳 Datáfono' : '💶 Efectivo'}
+                      </span>
+                      {v.en_booksy && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Booksy</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right text-gray-500">{v.comision_pct}%</td>
                     <td className="px-3 py-2 text-right font-semibold text-mavic-black">{fmtEuros(v.parte_empleada)} €</td>
                     <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)} €</td>

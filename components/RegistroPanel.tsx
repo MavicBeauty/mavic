@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import VentasPanel from '@/components/VentasPanel';
+import RegistroStats from '@/components/RegistroStats';
 
 interface Movimiento {
   id: string;
@@ -47,7 +48,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'movimientos' | 'servicios'>('movimientos');
+  const [tab, setTab] = useState<'movimientos' | 'servicios' | 'estadisticas'>('movimientos');
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -168,7 +169,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
         </div>
       </header>
 
-      <main className={`${tab === 'servicios' ? 'max-w-5xl' : 'max-w-3xl'} mx-auto px-4 py-6`}>
+      <main className={`${tab === 'movimientos' ? 'max-w-3xl' : 'max-w-5xl'} mx-auto px-4 py-6`}>
         {/* Pestañas */}
         <div className="flex gap-2 mb-5">
           <button
@@ -191,9 +192,21 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
           >
             Servicios vendidos
           </button>
+          <button
+            onClick={() => setTab('estadisticas')}
+            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+              tab === 'estadisticas'
+                ? 'bg-mavic-pink text-white shadow'
+                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
+            }`}
+          >
+            Estadísticas
+          </button>
         </div>
 
-        {tab === 'servicios' && profile ? (
+        {tab === 'estadisticas' ? (
+          <RegistroStats />
+        ) : tab === 'servicios' && profile ? (
           <VentasPanel profile={profile} isAdmin={isAdmin} />
         ) : (
           <>
