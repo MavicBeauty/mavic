@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-12-gestoria-selector-contactos',
+    date: '2026-07-12',
+    title: 'Elige a quién de la gestoría enviar el registro de horas',
+    description: 'Al pulsar "Enviar a gestoría", ahora aparece la lista de contactos de la gestoría para marcar a quién quieres enviar el registro (una o varias personas). Los dos contactos habituales (Montse de laboral y el buzón del departamento) ya vienen marcados, y con "+ Otros contactos" puedes ver al resto de personas de la gestoría por si algún mes hay que enviarlo a alguien más.',
+    why: 'Antes el registro se enviaba siempre a los mismos dos correos, fijos, y no se podían cambiar sin tocar la configuración interna. Ahora, si la gestoría cambia de persona de contacto o hace falta copiar a alguien más, se elige directamente al enviar.',
+    tag: 'mejora',
+  },
+  {
     id: '2026-07-07-registro-nuevo',
     date: '2026-07-07',
     title: 'Nuevo: sección de Registro en el portal',

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState, useEffect, useCallback, Fragment } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { generateTimesheetPDF } from '@/lib/timesheet-pdf';
+import { GESTORIA_CONTACTS, COMMON_GESTORIA_EMAILS } from '@/lib/gestoria';
 import SignaturePad from '@/components/SignaturePad';
 
 interface DayEntry {
@@ -67,8 +68,8 @@ export default function EmpleadosPage() {
   const [sendMsg, setSendMsg] = useState('');
   const [showGestoriaConfirm, setShowGestoriaConfirm] = useState(false);
   const [showNotBothSignedWarning, setShowNotBothSignedWarning] = useState(false);
-  const [gestoriaTargets, setGestoriaTargets] = useState<string[]>([]);
-  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+  const [showAllContacts, setShowAllContacts] = useState(false);
   const [expandedExtraRows, setExpandedExtraRows] = useState<Set<number>>(new Set());
   const [fading, setFading] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -318,7 +319,7 @@ export default function EmpleadosPage() {
       const res = await fetch('/api/send-timesheet', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session?.access_token}` },
-        body: JSON.stringify({ pdfBase64, employeeName: employee, month, year }),
+        body: JSON.stringify({ pdfBase64, employeeName: employee, month, year, recipients: selectedRecipients }),
       });
       const json = await res.json();
       if (json.error) {
@@ -371,16 +372,16 @@ export default function EmpleadosPage() {
     handleGestoriaClick();
   };
 
-  const handleGestoriaClick = async () => {
-    setLoadingTargets(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    const res = await fetch('/api/send-timesheet', {
-      headers: { 'Authorization': `Bearer ${session?.access_token}` },
-    });
-    const json = await res.json();
-    setGestoriaTargets(json.targets ?? []);
-    setLoadingTargets(false);
+  const handleGestoriaClick = () => {
+    setSelectedRecipients(COMMON_GESTORIA_EMAILS);
+    setShowAllContacts(false);
     setShowGestoriaConfirm(true);
+  };
+
+  const toggleRecipient = (email: string) => {
+    setSelectedRecipients(prev =>
+      prev.includes(email) ? prev.filter(e => e !== email) : [...prev, email]
+    );
   };
 
   return (
@@ -390,21 +391,58 @@ export default function EmpleadosPage() {
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-sm w-full">
             <h3 className="text-lg font-bold text-mavic-black mb-2">Enviar a la gestoría</h3>
             <p className="text-sm text-gray-600 mb-3">
-              Vas a enviar el registro de <strong>{employee}</strong> — {MONTHS[month - 1]} {year} a:
+              Vas a enviar el registro de <strong>{employee}</strong> — {MONTHS[month - 1]} {year}. Elige a quién enviarlo:
             </p>
-            <ul className="bg-gray-50 rounded-lg px-4 py-3 mb-4 space-y-1">
-              {gestoriaTargets.length > 0
-                ? gestoriaTargets.map(t => (
-                    <li key={t} className="text-sm font-medium text-gray-700">{t}</li>
-                  ))
-                : <li className="text-sm text-red-500">No hay destinatarios configurados (GESTORIA_EMAIL)</li>
-              }
-            </ul>
-            <p className="text-xs text-gray-400 mb-5">¿Confirmas el envío?</p>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-1">Se suele enviar a:</p>
+            <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3">
+              {GESTORIA_CONTACTS.filter(c => COMMON_GESTORIA_EMAILS.includes(c.email)).map(c => (
+                <label key={c.email} className="flex items-start gap-2.5 py-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedRecipients.includes(c.email)}
+                    onChange={() => toggleRecipient(c.email)}
+                    className="mt-0.5 h-4 w-4 accent-blue-600 flex-shrink-0"
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-gray-800">{c.name}</span>
+                    <span className="block text-xs text-gray-500 truncate">{c.email}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowAllContacts(v => !v)}
+              className="text-xs font-semibold text-blue-600 hover:text-blue-700 mb-3"
+            >
+              {showAllContacts ? '− Ocultar otros contactos' : '+ Otros contactos de la gestoría'}
+            </button>
+            {showAllContacts && (
+              <div className="bg-gray-50 rounded-lg px-3 py-2 mb-3 max-h-52 overflow-y-auto">
+                {GESTORIA_CONTACTS.filter(c => !COMMON_GESTORIA_EMAILS.includes(c.email)).map(c => (
+                  <label key={c.email} className="flex items-start gap-2.5 py-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedRecipients.includes(c.email)}
+                      onChange={() => toggleRecipient(c.email)}
+                      className="mt-0.5 h-4 w-4 accent-blue-600 flex-shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-gray-800">{c.name}</span>
+                      <span className="block text-xs text-gray-500 truncate">{c.email} · {c.department}</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-400 mb-5">
+              {selectedRecipients.length === 0
+                ? 'Selecciona al menos un destinatario.'
+                : `¿Confirmas el envío a ${selectedRecipients.length} ${selectedRecipients.length === 1 ? 'destinatario' : 'destinatarios'}?`}
+            </p>
             <div className="flex gap-3">
               <button
                 onClick={() => { setShowGestoriaConfirm(false); handleSendToGestoria(); }}
-                disabled={gestoriaTargets.length === 0 || sending}
+                disabled={selectedRecipients.length === 0 || sending}
                 className="flex-1 px-4 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-50"
               >
                 Confirmar envío
@@ -624,10 +662,10 @@ export default function EmpleadosPage() {
             )}
             <button
               onClick={handleGestoriaButtonClick}
-              disabled={sending || loadingTargets || employees.length === 0}
+              disabled={sending || employees.length === 0}
               className="px-5 py-2 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition disabled:opacity-40"
             >
-              {sending ? 'Enviando...' : loadingTargets ? 'Cargando...' : 'Enviar a gestoría'}
+              {sending ? 'Enviando...' : 'Enviar a gestoría'}
             </button>
             {employeeSigned && !changeRequestedAt && (
               <button
