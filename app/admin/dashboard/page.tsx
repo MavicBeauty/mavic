@@ -30,6 +30,7 @@ export default function DashboardPage() {
     { href: '/admin/servicios',       icon: '💅',   title: 'Servicios & Precios', desc: 'Añadir, editar y eliminar servicios. Gestionar precios en español y catalán.' },
     { href: '/admin/creaciones',      icon: '🖼️',   title: 'Nuestras Creaciones', desc: 'Subir y eliminar fotos de la galería pública.' },
     { href: '/admin/ofertas',         icon: '📢',   title: 'Ventana Emergente',   desc: 'Configura el anuncio que aparece al entrar al sitio web.' },
+    { href: '/admin/registro',        icon: '📒',   title: 'Registro',            desc: 'Movimientos de caja: entradas, salidas y saldo actual.' },
   ];
 
   return (
