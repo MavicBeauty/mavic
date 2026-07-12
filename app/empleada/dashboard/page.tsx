@@ -134,7 +134,7 @@ export default function EmpleadaDashboardPage() {
         </Link>
 
         <Link
-          href="/empleada/caja-b"
+          href="/empleada/registro"
           className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
         >
           <div className="flex items-center gap-4">
@@ -145,7 +145,7 @@ export default function EmpleadaDashboardPage() {
             </div>
             <div>
               <h2 className="text-lg font-bold text-mavic-black group-hover:text-mavic-pink transition">
-                Caja B
+                Registro
               </h2>
               <p className="text-gray-500 text-sm">Registra movimientos y consulta el saldo</p>
             </div>

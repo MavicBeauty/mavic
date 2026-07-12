@@ -32,7 +32,7 @@ function fmtFecha(fecha: string) {
   return `${d}/${m}/${y}`;
 }
 
-export default function EmpleadaCajaBPage() {
+export default function EmpleadaRegistroPage() {
   const router = useRouter();
   const supabase = createClient();
 
@@ -67,7 +67,7 @@ export default function EmpleadaCajaBPage() {
 
   const loadMovimientos = useCallback(async () => {
     const { data } = await supabase
-      .from('caja_b_movimientos')
+      .from('registro_movimientos')
       .select('id, fecha, direccion, importe, categoria, nota, quien_nombre, created_at')
       .order('fecha', { ascending: false })
       .order('created_at', { ascending: false });
@@ -96,7 +96,7 @@ export default function EmpleadaCajaBPage() {
     if (!monto || monto <= 0) { setSaveMsg('Error: importe inválido'); return; }
     setSaving(true);
     setSaveMsg('');
-    const { error } = await supabase.from('caja_b_movimientos').insert({
+    const { error } = await supabase.from('registro_movimientos').insert({
       fecha,
       direccion,
       importe: monto,
@@ -130,7 +130,7 @@ export default function EmpleadaCajaBPage() {
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
         <div className="max-w-3xl mx-auto px-4 py-5 flex justify-between items-center">
           <div>
-            <h1 className="text-xl font-bold">Caja B</h1>
+            <h1 className="text-xl font-bold">Registro</h1>
             <p className="text-white/80 text-sm">{profile?.name}</p>
           </div>
           <div className="flex items-center gap-4">

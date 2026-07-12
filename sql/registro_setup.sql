@@ -1,14 +1,14 @@
 -- ============================================================
--- Caja B — ledger de efectivo extraoficial (MAVIC-09)
+-- Registro — ledger de movimientos de caja (MAVIC-09)
 -- Ejecutar en el SQL Editor de Supabase
 -- ============================================================
 -- Puente ligero, no un sistema completo: solo registra movimientos
 -- y expone un saldo corriente. Sin edición ni borrado — un error se
 -- corrige con un movimiento nuevo en sentido contrario, no editando
--- el histórico. Ver MAVIC - Flujo de Caja.md → Herramientas Planificadas.
+-- el histórico.
 
 -- 1. Tabla
-CREATE TABLE IF NOT EXISTS caja_b_movimientos (
+CREATE TABLE IF NOT EXISTS registro_movimientos (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   fecha           date NOT NULL DEFAULT CURRENT_DATE,
   direccion       text NOT NULL CHECK (direccion IN ('+', '-')),
@@ -27,22 +27,22 @@ CREATE TABLE IF NOT EXISTS caja_b_movimientos (
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_caja_b_fecha ON caja_b_movimientos(fecha);
+CREATE INDEX IF NOT EXISTS idx_registro_fecha ON registro_movimientos(fecha);
 
 -- 2. RLS
-ALTER TABLE caja_b_movimientos ENABLE ROW LEVEL SECURITY;
+ALTER TABLE registro_movimientos ENABLE ROW LEVEL SECURITY;
 
 -- Acceso sin niveles: José, María, Angelica, Kelly, Keren ven y registran
 -- por igual (spec: "sin sistema de permisos nuevo"). Cualquier usuario
 -- autenticado con una fila en profiles puede leer todo el ledger.
-CREATE POLICY "caja_b_select_all" ON caja_b_movimientos
+CREATE POLICY "registro_select_all" ON registro_movimientos
   FOR SELECT TO authenticated
   USING (
     EXISTS (SELECT 1 FROM profiles WHERE profiles.id = auth.uid())
   );
 
 -- Solo se puede insertar a nombre de uno mismo.
-CREATE POLICY "caja_b_insert_own" ON caja_b_movimientos
+CREATE POLICY "registro_insert_own" ON registro_movimientos
   FOR INSERT TO authenticated
   WITH CHECK (quien_registro = auth.uid());
 
