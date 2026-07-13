@@ -12,7 +12,7 @@ interface Movimiento {
   fecha: string;
   direccion: '+' | '-';
   importe: number;
-  categoria: string;
+  categoria?: string | null;
   nota: string | null;
   quien_nombre: string;
   created_at: string;
@@ -31,7 +31,8 @@ interface RegistroPanelProps {
 }
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-const CATEGORIAS = ['Pago Yuranny', 'Pago Angelica', 'Nómina socios', 'Gastos varios', 'Otro'] as const;
+const PAGE_SIZES = [20, 50, 100] as const;
+type PageSize = typeof PAGE_SIZES[number] | 'mes-completo';
 
 function fmtEuros(n: number) {
   return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -55,10 +56,11 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   const [year, setYear] = useState(new Date().getFullYear());
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
+  const [pageSize, setPageSize] = useState<PageSize>(20);
+
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [direccion, setDireccion] = useState<'+' | '-'>('+');
   const [importe, setImporte] = useState('');
-  const [categoria, setCategoria] = useState<typeof CATEGORIAS[number]>(CATEGORIAS[0]);
   const [nota, setNota] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -79,7 +81,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   const loadMovimientos = useCallback(async () => {
     const { data } = await supabase
       .from('registro_movimientos')
-      .select('id, fecha, direccion, importe, categoria, nota, quien_nombre, created_at')
+      .select('id, fecha, direccion, importe, nota, quien_nombre, created_at')
       .order('fecha', { ascending: false })
       .order('created_at', { ascending: false });
     const rows = (data as Array<Omit<Movimiento, 'importe'> & { importe: number | string }> | null) ?? [];
@@ -100,6 +102,18 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   });
   const totalPeriodo = delPeriodo.reduce((s, m) => s + (m.direccion === '+' ? m.importe : -m.importe), 0);
 
+  // "Mes completo" solo tiene sentido (y solo se muestra) si el mes tiene más
+  // movimientos que el tope más alto de la lista fija (100).
+  const permiteMesCompleto = delPeriodo.length > 100;
+  const visiblesPeriodo = pageSize === 'mes-completo' ? delPeriodo : delPeriodo.slice(0, pageSize);
+
+  useEffect(() => {
+    // Si veníamos en "mes completo" y el nuevo mes ya no lo necesita, volver al default.
+    if (pageSize === 'mes-completo' && delPeriodo.length <= 100) {
+      setPageSize(20);
+    }
+  }, [month, year]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
@@ -111,7 +125,6 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
       fecha,
       direccion,
       importe: monto,
-      categoria,
       nota: nota.trim() || null,
       quien_registro: profile.id,
       quien_nombre: profile.name,
@@ -273,16 +286,6 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                   className="w-28 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-600 mb-1">Categoría</label>
-                <select
-                  value={categoria}
-                  onChange={e => setCategoria(e.target.value as typeof CATEGORIAS[number])}
-                  className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                >
-                  {CATEGORIAS.map(c => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Nota (opcional)</label>
@@ -333,7 +336,24 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
           </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Mostrar</label>
+            <select
+              value={pageSize}
+              onChange={e => setPageSize(e.target.value === 'mes-completo' ? 'mes-completo' : parseInt(e.target.value) as typeof PAGE_SIZES[number])}
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+            >
+              {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
+              {permiteMesCompleto && <option value="mes-completo">Mes completo</option>}
+            </select>
+          </div>
         </div>
+
+        {visiblesPeriodo.length < delPeriodo.length && (
+          <p className="text-xs text-gray-500 mb-2">
+            Mostrando {visiblesPeriodo.length} de {delPeriodo.length} movimientos.
+          </p>
+        )}
 
         {/* Tabla */}
         <div className="bg-white rounded-lg shadow-lg overflow-hidden">
@@ -342,23 +362,21 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                  <th className="px-3 py-3 text-left font-semibold text-gray-700">Categoría</th>
                   <th className="px-3 py-3 text-right font-semibold text-gray-700">Importe</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-700">Nota</th>
                   <th className="px-3 py-3 text-left font-semibold text-gray-700">Registrado por</th>
                 </tr>
               </thead>
               <tbody>
-                {delPeriodo.length === 0 ? (
+                {visiblesPeriodo.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
+                    <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
                       No hay movimientos este mes.
                     </td>
                   </tr>
-                ) : delPeriodo.map(m => (
+                ) : visiblesPeriodo.map(m => (
                   <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-2 text-gray-700">{fmtFecha(m.fecha)}</td>
-                    <td className="px-3 py-2 text-gray-700">{m.categoria}</td>
                     <td className={`px-3 py-2 text-right font-semibold ${m.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
                       {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)} €
                     </td>
@@ -368,7 +386,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                 ))}
 
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
-                  <td className="px-4 py-3 text-mavic-black" colSpan={2}>TOTAL DEL MES</td>
+                  <td className="px-4 py-3 text-mavic-black">TOTAL DEL MES</td>
                   <td className={`px-3 py-3 text-right text-lg ${totalPeriodo < 0 ? 'text-red-600' : 'text-mavic-pink'}`}>
                     {totalPeriodo >= 0 ? '+' : '−'} {fmtEuros(Math.abs(totalPeriodo))} €
                   </td>

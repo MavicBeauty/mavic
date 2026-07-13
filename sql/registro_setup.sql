@@ -13,7 +13,9 @@ CREATE TABLE IF NOT EXISTS registro_movimientos (
   fecha           date NOT NULL DEFAULT CURRENT_DATE,
   direccion       text NOT NULL CHECK (direccion IN ('+', '-')),
   importe         numeric(10,2) NOT NULL CHECK (importe > 0),
-  categoria       text NOT NULL CHECK (categoria IN (
+  -- Ya no se pide en el alta (columna se conserva sólo para leer histórico;
+  -- ver ALTER TABLE ... DROP NOT NULL más abajo).
+  categoria       text CHECK (categoria IN (
                     'Pago Yuranny', 'Pago Angelica', 'Nómina socios', 'Gastos varios', 'Otro'
                   )),
   nota            text,
@@ -47,3 +49,8 @@ CREATE POLICY "registro_insert_own" ON registro_movimientos
   WITH CHECK (quien_registro = auth.uid());
 
 -- Sin policies de UPDATE/DELETE a propósito — ledger de solo-append.
+
+-- 3. Migración — quitar "Categoría" del alta de movimientos (idempotente)
+-- La UI dejó de pedir categoría; se conserva la columna para no perder
+-- histórico, pero ya no puede ser obligatoria o los inserts nuevos fallarían.
+ALTER TABLE registro_movimientos ALTER COLUMN categoria DROP NOT NULL;
