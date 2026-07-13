@@ -43,6 +43,15 @@ function fmtFecha(fecha: string) {
   return `${d}/${m}/${y}`;
 }
 
+function fmtFechaHora(ts: string) {
+  return new Date(ts).toLocaleString('es-ES', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
+
+const MODAL_TRANSITION_MS = 200;
+
 export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin = false }: RegistroPanelProps) {
   const router = useRouter();
   const supabase = createClient();
@@ -64,6 +73,9 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   const [nota, setNota] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
+
+  const [detalleMov, setDetalleMov] = useState<Movimiento | null>(null);
+  const [detalleVisible, setDetalleVisible] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -140,6 +152,28 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
     setTimeout(() => setSaveMsg(''), 3000);
     loadMovimientos();
   };
+
+  const closeDetalle = useCallback(() => {
+    setDetalleVisible(false);
+    window.setTimeout(() => setDetalleMov(null), MODAL_TRANSITION_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!detalleMov) return;
+    const raf = requestAnimationFrame(() => setDetalleVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, [detalleMov]);
+
+  useEffect(() => {
+    if (!detalleMov) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeDetalle(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [detalleMov, closeDetalle]);
 
   if (loading) {
     return (
@@ -380,7 +414,22 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                     <td className={`px-3 py-2 text-right font-semibold ${m.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
                       {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)} €
                     </td>
-                    <td className="px-3 py-2 text-gray-500">{m.nota || '—'}</td>
+                    <td className="px-3 py-2 text-gray-500">
+                      {m.nota ? (
+                        <button
+                          type="button"
+                          onClick={() => setDetalleMov(m)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-mavic-pink hover:text-mavic-pink/80 transition"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124M15.75 17.25h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
+                          </svg>
+                          Ver nota
+                        </button>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-gray-500">{m.quien_nombre}</td>
                   </tr>
                 ))}
@@ -399,6 +448,64 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
           </>
         )}
       </main>
+
+      {detalleMov && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Detalle del movimiento">
+          <div
+            onClick={closeDetalle}
+            className={`absolute inset-0 bg-black/40 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out ${
+              detalleVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          <div
+            className={`relative bg-mavic-beige rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
+              detalleVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+            }`}
+          >
+            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0 rounded-t-xl">
+              <h2 className="text-lg font-bold">Detalle del movimiento</h2>
+              <button
+                onClick={closeDetalle}
+                aria-label="Cerrar"
+                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white flex-shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="bg-white rounded-xl shadow p-5 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</span>
+                  <span className="text-sm font-semibold text-mavic-black">{fmtFecha(detalleMov.fecha)}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Importe</span>
+                  <span className={`text-lg font-bold ${detalleMov.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
+                    {detalleMov.direccion === '+' ? '+' : '−'} {fmtEuros(detalleMov.importe)} €
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Registrado por</span>
+                  <span className="text-sm text-gray-700">{detalleMov.quien_nombre}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hora de registro</span>
+                  <span className="text-sm text-gray-700">{fmtFechaHora(detalleMov.created_at)}</span>
+                </div>
+                <div className="pt-1 border-t border-gray-100">
+                  <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 mt-2">Nota</span>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
+                    {detalleMov.nota}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

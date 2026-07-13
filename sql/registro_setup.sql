@@ -54,3 +54,61 @@ CREATE POLICY "registro_insert_own" ON registro_movimientos
 -- La UI dejó de pedir categoría; se conserva la columna para no perder
 -- histórico, pero ya no puede ser obligatoria o los inserts nuevos fallarían.
 ALTER TABLE registro_movimientos ALTER COLUMN categoria DROP NOT NULL;
+
+-- ============================================================
+-- NOTA: registro_ventas y registro_liquidaciones (tablas de "Servicios
+-- vendidos", commit 8bafdef) se crearon vía Management API en una sesión
+-- anterior pero su DDL nunca se guardó en este repo. Falta de archivo, no
+-- de tablas — ambas existen en producción. Ver components/VentasPanel.tsx
+-- para las columnas usadas. Pendiente: reconstruir y documentar aquí si se
+-- vuelve a tocar ese módulo.
+-- ============================================================
+
+-- 4. "Espejo del cajón" — mirror automático de ventas en efectivo (MAVIC-09,
+-- batch de auto-movimiento). Preparación de esquema para trazabilidad
+-- (liquidaciones y futuro cuadre de caja usarán las mismas columnas).
+ALTER TABLE registro_movimientos
+  ADD COLUMN IF NOT EXISTS venta_id uuid REFERENCES registro_ventas(id) ON DELETE SET NULL;
+
+ALTER TABLE registro_movimientos
+  ADD COLUMN IF NOT EXISTS origen text NOT NULL DEFAULT 'manual' CHECK (origen IN ('manual', 'venta', 'liquidacion'));
+
+-- Trigger: toda venta en efectivo que NO esté en Booksy entra físicamente
+-- en el cajón, así que el ledger debe reflejarlo solo. El importe es el
+-- precio COMPLETO del servicio (todo el efectivo entra en el cajón, no solo
+-- la parte del negocio) — la parte de la empleada se liquida después con
+-- dinero del propio cajón (próximo batch). SECURITY DEFINER porque la
+-- policy de INSERT de registro_movimientos exige quien_registro = auth.uid();
+-- el trigger fija quien_registro/quien_nombre con los datos de quien
+-- registró la venta, así que no depende de permisos de quien dispara el
+-- trigger.
+CREATE OR REPLACE FUNCTION registro_venta_to_movimiento()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  IF NEW.metodo_pago = 'efectivo' AND NEW.en_booksy = false THEN
+    INSERT INTO registro_movimientos (
+      fecha, direccion, importe, nota, quien_registro, quien_nombre, origen, venta_id
+    ) VALUES (
+      NEW.fecha,
+      '+',
+      NEW.precio,
+      'Venta: ' || NEW.producto_nombre || ' — ' || NEW.empleada_nombre,
+      NEW.quien_registro,
+      NEW.quien_nombre,
+      'venta',
+      NEW.id
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_registro_venta_to_movimiento ON registro_ventas;
+CREATE TRIGGER trg_registro_venta_to_movimiento
+  AFTER INSERT ON registro_ventas
+  FOR EACH ROW
+  EXECUTE FUNCTION registro_venta_to_movimiento();
