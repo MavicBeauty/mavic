@@ -26,8 +26,10 @@ export default function ChangelogBell() {
   const [ready, setReady] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const latest = CHANGELOG[0];
-  const hasUnseen = ready && !!latest && (!lastSeenAt || new Date(latest.date) > new Date(lastSeenAt));
+  const unseenCount = ready
+    ? CHANGELOG.filter((entry) => !lastSeenAt || new Date(entry.date) > new Date(lastSeenAt)).length
+    : 0;
+  const hasUnseen = unseenCount > 0;
 
   useEffect(() => {
     const supabase = createClient();
@@ -87,7 +89,11 @@ export default function ChangelogBell() {
       <button
         ref={triggerRef}
         onClick={handleOpen}
-        aria-label={hasUnseen ? 'Novedades del sistema (hay novedades sin leer)' : 'Novedades del sistema'}
+        aria-label={
+          hasUnseen
+            ? `Novedades del sistema (${unseenCount} ${unseenCount === 1 ? 'novedad sin leer' : 'novedades sin leer'})`
+            : 'Novedades del sistema'
+        }
         className="relative p-2.5 rounded-full bg-white text-mavic-pink shadow-md hover:shadow-lg transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-mavic-pink"
       >
         <svg
@@ -98,9 +104,11 @@ export default function ChangelogBell() {
             d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
         </svg>
         {hasUnseen && (
-          <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
+          <span className="absolute -top-1 -right-1 flex">
             <span className="motion-safe:animate-ping motion-reduce:hidden absolute inline-flex h-full w-full rounded-full bg-mavic-gold opacity-75" />
-            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-mavic-gold ring-2 ring-white" />
+            <span className="relative inline-flex items-center justify-center min-w-[1.25rem] h-5 px-1 rounded-full bg-mavic-gold ring-2 ring-white text-white text-[11px] font-bold leading-none">
+              {unseenCount > 9 ? '9+' : unseenCount}
+            </span>
           </span>
         )}
       </button>
