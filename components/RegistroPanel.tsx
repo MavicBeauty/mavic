@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import VentasPanel from '@/components/VentasPanel';
 import RegistroStats from '@/components/RegistroStats';
+import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora } from '@/lib/registro-format';
 
 interface Movimiento {
   id: string;
@@ -30,25 +31,8 @@ interface RegistroPanelProps {
   isAdmin?: boolean;
 }
 
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const PAGE_SIZES = [20, 50, 100] as const;
 type PageSize = typeof PAGE_SIZES[number] | 'mes-completo';
-
-function fmtEuros(n: number) {
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function fmtFecha(fecha: string) {
-  const [y, m, d] = fecha.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-function fmtFechaHora(ts: string) {
-  return new Date(ts).toLocaleString('es-ES', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
 
 const MODAL_TRANSITION_MS = 200;
 
@@ -268,7 +252,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
         <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-emerald-400">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo actual</p>
           <p className={`text-3xl font-bold ${saldo < 0 ? 'text-red-600' : 'text-mavic-black'}`}>
-            {fmtEuros(saldo)} €
+            {fmtEuros(saldo)}
           </p>
         </div>
 
@@ -362,7 +346,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             <select
               value={month}
               onChange={e => setMonth(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
             >
               {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
@@ -372,7 +356,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             <select
               value={year}
               onChange={e => setYear(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
             >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -382,7 +366,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             <select
               value={pageSize}
               onChange={e => setPageSize(e.target.value === 'mes-completo' ? 'mes-completo' : parseInt(e.target.value) as typeof PAGE_SIZES[number])}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
             >
               {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
               {permiteMesCompleto && <option value="mes-completo">Mes completo</option>}
@@ -419,7 +403,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                   <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-4 py-2 text-gray-700">{fmtFecha(m.fecha)}</td>
                     <td className={`px-3 py-2 text-right font-semibold ${m.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                      {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)} €
+                      {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)}
                     </td>
                     <td className="px-3 py-2 text-gray-500">
                       {m.nota ? (
@@ -444,7 +428,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                 <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
                   <td className="px-4 py-3 text-mavic-black">TOTAL DEL MES</td>
                   <td className={`px-3 py-3 text-right text-lg ${totalPeriodo < 0 ? 'text-red-600' : 'text-mavic-pink'}`}>
-                    {totalPeriodo >= 0 ? '+' : '−'} {fmtEuros(Math.abs(totalPeriodo))} €
+                    {totalPeriodo >= 0 ? '+' : '−'} {fmtEuros(Math.abs(totalPeriodo))}
                   </td>
                   <td colSpan={2}></td>
                 </tr>
@@ -491,7 +475,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Importe</span>
                   <span className={`text-lg font-bold ${detalleMov.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                    {detalleMov.direccion === '+' ? '+' : '−'} {fmtEuros(detalleMov.importe)} €
+                    {detalleMov.direccion === '+' ? '+' : '−'} {fmtEuros(detalleMov.importe)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-3">

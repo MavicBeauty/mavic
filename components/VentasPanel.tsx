@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora, round2, plural } from '@/lib/registro-format';
 
 interface Venta {
   id: string;
@@ -60,8 +61,6 @@ interface VentasPanelProps {
   isAdmin: boolean;
 }
 
-const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-
 type SortKey = 'fecha-desc' | 'fecha-asc' | 'importe-desc' | 'importe-asc' | 'empleada' | 'estado';
 
 const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
@@ -72,26 +71,6 @@ const SORT_OPTIONS: Array<{ value: SortKey; label: string }> = [
   { value: 'empleada',     label: 'Empleada' },
   { value: 'estado',       label: 'Estado (pendientes primero)' },
 ];
-
-function fmtEuros(n: number) {
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
-
-function fmtFecha(fecha: string) {
-  const [y, m, d] = fecha.split('-');
-  return `${d}/${m}/${y}`;
-}
-
-function fmtFechaHora(ts: string) {
-  return new Date(ts).toLocaleString('es-ES', {
-    day: '2-digit', month: '2-digit', year: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  });
-}
-
-function round2(n: number) {
-  return Math.round(n * 100) / 100;
-}
 
 const CAMPO_LABELS: Record<string, string> = {
   fecha: 'Fecha', producto: 'Servicio', precio: 'Precio (€)', empleada: 'Empleada',
@@ -366,17 +345,18 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     load();
   };
 
-  // ── Totales ──────────────────────────────────────────────────────
+  // ── Totales sin liquidar (MAVIC-24/18) ───────────────────────────
+  // Las tarjetas solo cuentan servicios SIN liquidar: se ponen a 0 al marcar
+  // pagado. Lo acumulado por mes vive en la pestaña Estadísticas.
   const ventasMes = ventas.filter(v => {
     const [y, mo] = v.fecha.split('-').map(Number);
     return y === year && mo === month;
   });
-  const totalMes = ventasMes.reduce((s, v) => s + v.precio, 0);
-  const parteNegocioMes = ventasMes.reduce((s, v) => s + v.parte_negocio, 0);
-  const parteEmpleadasMes = ventasMes.reduce((s, v) => s + v.parte_empleada, 0);
 
-  // Pendiente de pago por empleada (histórico, sin filtro de mes)
   const pendientes = ventas.filter(v => !v.liquidacion_id);
+  const pendNegocio = round2(pendientes.reduce((s, v) => s + v.parte_negocio, 0));
+  const pendDatafono = round2(pendientes.filter(v => v.metodo_pago === 'datafono').reduce((s, v) => s + v.precio, 0));
+  const pendEfectivo = round2(pendientes.filter(v => v.metodo_pago === 'efectivo').reduce((s, v) => s + v.precio, 0));
   const pendientePorEmpleada = new Map<string, { nombre: string; total: number; count: number }>();
   for (const v of pendientes) {
     const cur = pendientePorEmpleada.get(v.empleada_id) ?? { nombre: v.empleada_nombre, total: 0, count: 0 };
@@ -384,6 +364,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     cur.count += 1;
     pendientePorEmpleada.set(v.empleada_id, cur);
   }
+  const miPendiente = pendientePorEmpleada.get(profile.id);
 
   // ── Orden de la lista ────────────────────────────────────────────
   const estadoDe = (v: Venta): { orden: number; texto: string; detalle: string | null } => {
@@ -453,7 +434,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     if (n !== ids.length) {
       flash(`Aviso: solo ${n} de ${ids.length} servicios se marcaron — recarga y revisa`);
     } else {
-      flash(`✓ Pagado: ${fmtEuros(totalSel)} € (${ids.length} servicios)`);
+      flash(`✓ Pagado: ${fmtEuros(totalSel)} (${ids.length} servicios)`);
     }
     setSeleccion(new Set());
     load();
@@ -481,6 +462,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   }
 
   const inputCls = 'px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink';
+  const selectCls = `${inputCls} select-mavic`;
 
   return (
     <div>
@@ -490,36 +472,43 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         </p>
       )}
 
-      {/* Totales del mes + pendientes — la vista portal solo recibe (RLS) y muestra lo suyo */}
-      <div className={`grid grid-cols-1 ${isAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 mb-5`}>
-        <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-gray-300">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{isAdmin ? 'Ventas del mes' : 'Tus ventas del mes'}</p>
-          <p className="text-2xl font-bold text-mavic-black">{fmtEuros(totalMes)} €</p>
-        </div>
+      {/* Tarjetas de lo sin liquidar — se ponen a 0 al marcar pagado (MAVIC-24/18).
+          La vista portal solo recibe lo suyo (RLS). Lo acumulado del mes está en Estadísticas. */}
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+        {isAdmin ? 'Sin liquidar — se pone a 0 al marcar pagado' : 'Pendiente de cobrar — se pone a 0 cuando te pagan'}
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
         {isAdmin && (
           <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-emerald-400">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Parte negocio</p>
-            <p className="text-2xl font-bold text-emerald-700">{fmtEuros(parteNegocioMes)} €</p>
+            <p className="text-2xl font-bold text-emerald-700">{fmtEuros(pendNegocio)}</p>
           </div>
         )}
-        <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{isAdmin ? 'Parte empleadas' : 'Tu comisión del mes'}</p>
-          <p className="text-2xl font-bold text-mavic-black">{fmtEuros(parteEmpleadasMes)} €</p>
+        {isAdmin ? (
+          Array.from(pendientePorEmpleada.entries()).map(([id, p]) => (
+            <div key={id} className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{p.nombre}</p>
+              <p className="text-2xl font-bold text-mavic-black">{fmtEuros(p.total)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{plural(p.count, 'servicio', 'servicios')}</p>
+            </div>
+          ))
+        ) : (
+          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tu comisión</p>
+            <p className="text-2xl font-bold text-mavic-black">{fmtEuros(miPendiente?.total ?? 0)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">{plural(miPendiente?.count ?? 0, 'servicio', 'servicios')}</p>
+          </div>
+        )}
+        <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-gray-300">
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">¿Cómo se cobró?</p>
+          <p className="text-sm text-blue-800">
+            💳 Datáfono (TPV Booksy): <span className="font-bold">{fmtEuros(pendDatafono)}</span>
+          </p>
+          <p className="text-sm text-green-800">
+            💶 Efectivo: <span className="font-bold">{fmtEuros(pendEfectivo)}</span>
+          </p>
         </div>
       </div>
-
-      {pendientePorEmpleada.size > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5">
-          <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">{isAdmin ? 'Pendiente de pago (histórico)' : 'Pendiente de cobrar (histórico)'}</p>
-          <div className="flex flex-wrap gap-x-6 gap-y-1">
-            {Array.from(pendientePorEmpleada.entries()).map(([id, p]) => (
-              <p key={id} className="text-sm text-amber-900">
-                <span className="font-bold">{p.nombre}:</span> {fmtEuros(p.total)} € ({p.count} {p.count === 1 ? 'servicio' : 'servicios'})
-              </p>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Nueva venta */}
       <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-mavic-pink">
@@ -532,12 +521,12 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
             </div>
             <div className="flex-1 min-w-52">
               <label className="block text-xs font-semibold text-gray-600 mb-1">Producto</label>
-              <select value={productoId} onChange={e => handleProductoChange(e.target.value)} required className={`w-full ${inputCls}`}>
+              <select value={productoId} onChange={e => handleProductoChange(e.target.value)} required className={`w-full ${selectCls}`}>
                 <option value="">— Elegir —</option>
                 {Array.from(new Set(productos.map(p => p.categoria))).map(cat => (
                   <optgroup key={cat} label={cat}>
                     {productos.filter(p => p.categoria === cat).map(p => (
-                      <option key={p.id} value={p.id}>{p.nombre} — {fmtEuros(p.precio)} €</option>
+                      <option key={p.id} value={p.id}>{p.nombre} — {fmtEuros(p.precio)}</option>
                     ))}
                   </optgroup>
                 ))}
@@ -608,7 +597,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Empleada</label>
               {isAdmin ? (
-                <select value={empleadaId} onChange={e => handleEmpleadaChange(e.target.value)} required className={inputCls}>
+                <select value={empleadaId} onChange={e => handleEmpleadaChange(e.target.value)} required className={selectCls}>
                   <option value="">— Elegir —</option>
                   {empleadas.map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                 </select>
@@ -624,8 +613,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
             </div>
             {precioNum > 0 && (
               <p className="text-sm text-gray-600 pb-2">
-                → Empleada: <span className="font-bold">{fmtEuros(parteEmpleadaPreview)} €</span>
-                {' · '}Negocio: <span className="font-bold">{fmtEuros(parteNegocioPreview)} €</span>
+                → Empleada: <span className="font-bold">{fmtEuros(parteEmpleadaPreview)}</span>
+                {' · '}Negocio: <span className="font-bold">{fmtEuros(parteNegocioPreview)}</span>
               </p>
             )}
           </div>
@@ -647,19 +636,19 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
       <div className="flex flex-wrap items-end gap-4 mb-3">
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
-          <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className={inputCls}>
+          <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className={selectCls}>
             {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Año</label>
-          <select value={year} onChange={e => setYear(parseInt(e.target.value))} className={inputCls}>
+          <select value={year} onChange={e => setYear(parseInt(e.target.value))} className={selectCls}>
             {years.map(y => <option key={y} value={y}>{y}</option>)}
           </select>
         </div>
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Ordenar por</label>
-          <select value={sort} onChange={e => setSort(e.target.value as SortKey)} className={inputCls}>
+          <select value={sort} onChange={e => setSort(e.target.value as SortKey)} className={selectCls}>
             {SORT_OPTIONS.filter(o => isAdmin || o.value !== 'empleada').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
@@ -673,7 +662,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
               disabled={!selValida || pagando}
               className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
             >
-              {pagando ? 'Pagando...' : `Marcar pagado — ${fmtEuros(totalSel)} € (${ventasSel.length})`}
+              {pagando ? 'Pagando...' : `Marcar pagado — ${fmtEuros(totalSel)} (${ventasSel.length})`}
             </button>
           </div>
         )}
@@ -737,7 +726,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                       {v.nota && <span className="block text-xs text-gray-400">{v.nota}</span>}
                     </td>
                     {isAdmin && <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>}
-                    <td className="px-3 py-2 text-right text-gray-700">{fmtEuros(v.precio)} €</td>
+                    <td className="px-3 py-2 text-right text-gray-700">{fmtEuros(v.precio)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs font-semibold ${v.metodo_pago === 'datafono' ? 'text-blue-700' : 'text-green-700'}`}>
                         {v.metodo_pago === 'datafono' ? '💳 Datáfono' : '💶 Efectivo'}
@@ -747,8 +736,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                       )}
                     </td>
                     <td className="px-3 py-2 text-right text-gray-500">{v.comision_pct}%</td>
-                    <td className="px-3 py-2 text-right font-semibold text-mavic-black">{fmtEuros(v.parte_empleada)} €</td>
-                    {isAdmin && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)} €</td>}
+                    <td className="px-3 py-2 text-right font-semibold text-mavic-black">{fmtEuros(v.parte_empleada)}</td>
+                    {isAdmin && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)}</td>}
                     <td className="px-3 py-2 whitespace-nowrap">
                       {est.texto === 'Pendiente' && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300">Pendiente</span>
@@ -792,7 +781,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                 <span className="text-gray-500 whitespace-nowrap">{fmtFechaHora(l.pagado_at)}</span>
                 <span className="text-gray-700">
                   <span className="font-semibold">{l.pagado_por_nombre}</span> pagó{' '}
-                  <span className="font-bold">{fmtEuros(l.total)} €</span> ({l.num_servicios}{' '}
+                  <span className="font-bold">{fmtEuros(l.total)}</span> ({l.num_servicios}{' '}
                   {l.num_servicios === 1 ? 'servicio' : 'servicios'}) a{' '}
                   <span className="font-semibold">{l.empleada_nombre}</span>
                 </span>
@@ -839,7 +828,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                       setEditForm(f => ({ ...f, productoId: id, precio: prod ? String(prod.precio) : f.precio }));
                     }}
                     required
-                    className={`w-full ${inputCls}`}
+                    className={`w-full ${selectCls}`}
                   >
                     {(editVenta.producto_id == null || !productos.some(p => p.id === editVenta.producto_id)) && (
                       <option value={PRODUCTO_ACTUAL}>{editVenta.producto_nombre} (actual)</option>
@@ -847,7 +836,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                     {Array.from(new Set(productos.map(p => p.categoria))).map(cat => (
                       <optgroup key={cat} label={cat}>
                         {productos.filter(p => p.categoria === cat).map(p => (
-                          <option key={p.id} value={p.id}>{p.nombre} — {fmtEuros(p.precio)} €</option>
+                          <option key={p.id} value={p.id}>{p.nombre} — {fmtEuros(p.precio)}</option>
                         ))}
                       </optgroup>
                     ))}
@@ -926,7 +915,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                         setEditForm(f => ({ ...f, empleadaId: id, pct: emp?.comision_pct != null ? String(emp.comision_pct) : f.pct }));
                       }}
                       required
-                      className={inputCls}
+                      className={selectCls}
                     >
                       {!empleadas.some(x => x.id === editVenta.empleada_id) && (
                         <option value={editVenta.empleada_id}>{editVenta.empleada_nombre}</option>
@@ -943,8 +932,8 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                 </div>
                 {editPrecioNum > 0 && (
                   <p className="text-sm text-gray-600 pb-2">
-                    → Empleada: <span className="font-bold">{fmtEuros(editParteEmpleada)} €</span>
-                    {' · '}Negocio: <span className="font-bold">{fmtEuros(editParteNegocio)} €</span>
+                    → Empleada: <span className="font-bold">{fmtEuros(editParteEmpleada)}</span>
+                    {' · '}Negocio: <span className="font-bold">{fmtEuros(editParteNegocio)}</span>
                   </p>
                 )}
               </div>

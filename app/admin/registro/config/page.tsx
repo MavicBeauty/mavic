@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { fmtEuros } from '@/lib/registro-format';
 
 interface Producto {
   id: string;
@@ -16,10 +17,6 @@ interface Empleada {
   id: string;
   name: string;
   comision_pct: number | null;
-}
-
-function fmtEuros(n: number) {
-  return n.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 export default function RegistroConfigPage() {
@@ -300,7 +297,7 @@ export default function RegistroConfigPage() {
 
         <p className="text-xs text-gray-400 mt-3">
           Precio de referencia: {productos.filter(p => p.activo).length} productos activos ·{' '}
-          {fmtEuros(productos.filter(p => p.activo).reduce((s, p) => s + p.precio, 0))} € en catálogo
+          {fmtEuros(productos.filter(p => p.activo).reduce((s, p) => s + p.precio, 0))} en catálogo
         </p>
       </main>
     </div>
