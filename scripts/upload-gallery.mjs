@@ -4,7 +4,12 @@ import fs from 'fs';
 import path from 'path';
 
 const SUPABASE_URL = 'https://cjqmterrgrthhpxmaoxc.supabase.co';
-const SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNqcW10ZXJyZ3J0aGhweG1hb3hjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODE3OTAwMiwiZXhwIjoyMDkzNzU1MDAyfQ.iB40oqOJ5r20O3TLFWccHHua-6Jokzqe0CgP8dVb_us';
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SERVICE_ROLE_KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY env var.');
+  console.error('Usage: SUPABASE_SERVICE_ROLE_KEY=<key> node scripts/upload-gallery.mjs');
+  process.exit(1);
+}
 const BUCKET = 'nail-gallery';
 const UNAS_DIR = path.join(process.cwd(), 'public', 'unas');
 
