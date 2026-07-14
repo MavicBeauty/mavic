@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import VentasPanel from '@/components/VentasPanel';
 import RegistroStats from '@/components/RegistroStats';
-import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora } from '@/lib/registro-format';
+import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora, round2 } from '@/lib/registro-format';
 
 interface Movimiento {
   id: string;
@@ -14,6 +14,17 @@ interface Movimiento {
   direccion: '+' | '-';
   importe: number;
   categoria?: string | null;
+  nota: string | null;
+  quien_nombre: string;
+  created_at: string;
+}
+
+interface Cuadre {
+  id: string;
+  tipo: 'apertura' | 'cierre';
+  saldo_calculado: number;
+  saldo_contado: number;
+  diferencia: number;
   nota: string | null;
   quien_nombre: string;
   created_at: string;
@@ -62,6 +73,16 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   const [detalleMov, setDetalleMov] = useState<Movimiento | null>(null);
   const [detalleVisible, setDetalleVisible] = useState(false);
 
+  // Cuadre de caja (MAVIC-25): conteo físico del cajón vs. saldo calculado.
+  const [cuadres, setCuadres] = useState<Cuadre[]>([]);
+  const [cuadreTipo, setCuadreTipo] = useState<'apertura' | 'cierre' | null>(null);
+  const [cuadreVisible, setCuadreVisible] = useState(false);
+  const [noCoincide, setNoCoincide] = useState(false);
+  const [contado, setContado] = useState('');
+  const [cuadreNota, setCuadreNota] = useState('');
+  const [cuadreSaving, setCuadreSaving] = useState(false);
+  const [cuadreError, setCuadreError] = useState('');
+
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (!session) { router.replace(loginHref); return; }
@@ -80,14 +101,30 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   const loadMovimientos = useCallback(async () => {
     // Las empleadas ya no ven el cajón (RLS lo bloquea igualmente) — no consultar.
     if (!isAdmin) { setLoading(false); return; }
-    const { data } = await supabase
-      .from('registro_movimientos')
-      .select('id, fecha, direccion, importe, nota, quien_nombre, created_at')
-      .order('fecha', { ascending: false })
-      .order('created_at', { ascending: false });
+    const [{ data }, { data: cuadresData }] = await Promise.all([
+      supabase
+        .from('registro_movimientos')
+        .select('id, fecha, direccion, importe, nota, quien_nombre, created_at')
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('registro_cuadres')
+        .select('id, tipo, saldo_calculado, saldo_contado, diferencia, nota, quien_nombre, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5),
+    ]);
     const rows = (data as Array<Omit<Movimiento, 'importe'> & { importe: number | string }> | null) ?? [];
     // numeric(10,2) columns come back from PostgREST as strings — coerce before summing.
     setMovimientos(rows.map(r => ({ ...r, importe: Number(r.importe) })));
+    const cRows = (cuadresData as Array<Omit<Cuadre, 'saldo_calculado' | 'saldo_contado' | 'diferencia'> & {
+      saldo_calculado: number | string; saldo_contado: number | string; diferencia: number | string;
+    }> | null) ?? [];
+    setCuadres(cRows.map(c => ({
+      ...c,
+      saldo_calculado: Number(c.saldo_calculado),
+      saldo_contado: Number(c.saldo_contado),
+      diferencia: Number(c.diferencia),
+    })));
     setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -163,6 +200,66 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
       document.body.style.overflow = '';
     };
   }, [detalleMov, closeDetalle]);
+
+  // ¿Ya se cuadró la caja hoy? (para el aviso de apertura)
+  const hayCuadreHoy = cuadres.some(c => new Date(c.created_at).toDateString() === new Date().toDateString());
+
+  const openCuadre = (tipo: 'apertura' | 'cierre') => {
+    setNoCoincide(false);
+    setContado('');
+    setCuadreNota('');
+    setCuadreError('');
+    setCuadreTipo(tipo);
+  };
+
+  const closeCuadre = useCallback(() => {
+    setCuadreVisible(false);
+    window.setTimeout(() => setCuadreTipo(null), MODAL_TRANSITION_MS);
+  }, []);
+
+  useEffect(() => {
+    if (!cuadreTipo) return;
+    const raf = requestAnimationFrame(() => setCuadreVisible(true));
+    return () => cancelAnimationFrame(raf);
+  }, [cuadreTipo]);
+
+  useEffect(() => {
+    if (!cuadreTipo) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeCuadre(); };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [cuadreTipo, closeCuadre]);
+
+  const saveCuadre = async (contadoValor: number) => {
+    if (!profile || !cuadreTipo) return;
+    if (isNaN(contadoValor) || contadoValor < 0) {
+      setCuadreError('Cantidad contada inválida');
+      return;
+    }
+    setCuadreSaving(true);
+    setCuadreError('');
+    // La diferencia la calcula la BD (columna generada); si hay descuadre, un
+    // trigger inserta el movimiento de ajuste para que el saldo vuelva a la realidad.
+    const { error } = await supabase.from('registro_cuadres').insert({
+      tipo: cuadreTipo,
+      saldo_calculado: round2(saldo),
+      saldo_contado: round2(contadoValor),
+      nota: cuadreNota.trim() || null,
+      quien_registro: profile.id,
+      quien_nombre: profile.name,
+    });
+    setCuadreSaving(false);
+    if (error) {
+      setCuadreError(error.message);
+      return;
+    }
+    closeCuadre();
+    loadMovimientos();
+  };
 
   if (loading) {
     return (
@@ -253,12 +350,33 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
           />
         ) : (
           <>
+        {/* Aviso de apertura: sin cuadre registrado hoy (MAVIC-25) */}
+        {!hayCuadreHoy && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm font-semibold text-amber-800">Aún no has cuadrado la caja hoy.</p>
+            <button
+              onClick={() => openCuadre('apertura')}
+              className="bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-amber-600 transition"
+            >
+              Contar ahora
+            </button>
+          </div>
+        )}
+
         {/* Saldo */}
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-emerald-400">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo actual</p>
-          <p className={`text-3xl font-bold ${saldo < 0 ? 'text-red-600' : 'text-mavic-black'}`}>
-            {fmtEuros(saldo)}
-          </p>
+        <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-emerald-400 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo actual</p>
+            <p className={`text-3xl font-bold ${saldo < 0 ? 'text-red-600' : 'text-mavic-black'}`}>
+              {fmtEuros(saldo)}
+            </p>
+          </div>
+          <button
+            onClick={() => openCuadre('cierre')}
+            className="bg-mavic-black text-white text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-mavic-black/85 transition"
+          >
+            Cierre de caja
+          </button>
         </div>
 
         {/* Nuevo movimiento */}
@@ -441,6 +559,36 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             </table>
           </div>
         </div>
+
+        {/* Últimos cuadres (MAVIC-25) */}
+        {cuadres.length > 0 && (
+          <div className="bg-white rounded-lg shadow-lg p-5 mt-5">
+            <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Últimos cuadres de caja</h2>
+            <ul className="divide-y divide-gray-100">
+              {cuadres.map(c => (
+                <li key={c.id} className="py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                  <span className="text-gray-500 w-28">{fmtFechaHora(c.created_at)}</span>
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                    c.tipo === 'cierre' ? 'bg-mavic-black text-white' : 'bg-gray-100 text-gray-600'
+                  }`}>
+                    {c.tipo === 'cierre' ? 'Cierre' : 'Apertura'}
+                  </span>
+                  <span className={`font-semibold ${
+                    c.diferencia === 0 ? 'text-green-600' : c.diferencia < 0 ? 'text-red-600' : 'text-amber-600'
+                  }`}>
+                    {c.diferencia === 0
+                      ? '✓ Cuadró'
+                      : c.diferencia < 0
+                        ? `Faltaron ${fmtEuros(-c.diferencia)}`
+                        : `Sobraron ${fmtEuros(c.diferencia)}`}
+                  </span>
+                  <span className="text-gray-400">{c.quien_nombre}</span>
+                  {c.nota && <span className="text-gray-500 italic basis-full sm:basis-auto">«{c.nota}»</span>}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
           </>
         )}
       </main>
@@ -497,6 +645,133 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                     {detalleMov.nota}
                   </p>
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de cuadre de caja (MAVIC-25) */}
+      {cuadreTipo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Cuadre de caja">
+          <div
+            onClick={cuadreSaving ? undefined : closeCuadre}
+            className={`absolute inset-0 bg-black/40 motion-safe:transition-opacity motion-safe:duration-200 motion-safe:ease-out ${
+              cuadreVisible ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+          <div
+            className={`relative bg-mavic-beige rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
+              cuadreVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+            }`}
+          >
+            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0 rounded-t-xl">
+              <h2 className="text-lg font-bold">{cuadreTipo === 'cierre' ? 'Cierre de caja' : 'Cuadre de caja'}</h2>
+              <button
+                onClick={closeCuadre}
+                disabled={cuadreSaving}
+                aria-label="Cerrar"
+                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white flex-shrink-0"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <div className="bg-white rounded-xl shadow p-5">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                  Según el registro, en el cajón debería haber
+                </p>
+                <p className="text-3xl font-bold text-mavic-black">{fmtEuros(saldo)}</p>
+
+                {!noCoincide ? (
+                  <>
+                    <p className="text-sm text-gray-600 mt-4">
+                      Cuenta el efectivo del cajón. ¿Coincide con esta cantidad?
+                    </p>
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      <button
+                        onClick={() => saveCuadre(saldo)}
+                        disabled={cuadreSaving}
+                        className="bg-green-600 text-white font-bold px-5 py-2.5 rounded-lg text-sm disabled:opacity-50 transition hover:bg-green-700"
+                      >
+                        {cuadreSaving ? 'Guardando...' : '✓ Sí, cuadra'}
+                      </button>
+                      <button
+                        onClick={() => setNoCoincide(true)}
+                        disabled={cuadreSaving}
+                        className="bg-white border border-red-300 text-red-700 font-bold px-5 py-2.5 rounded-lg text-sm disabled:opacity-50 transition hover:bg-red-50"
+                      >
+                        No coincide
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">¿Cuánto hay realmente?</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={contado}
+                        onChange={e => setContado(e.target.value)}
+                        autoFocus
+                        placeholder="0,00"
+                        className="w-36 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                      />
+                    </div>
+                    {contado !== '' && !isNaN(parseFloat(contado)) && (() => {
+                      const diff = round2(parseFloat(contado) - saldo);
+                      return (
+                        <p className={`text-sm font-bold ${
+                          diff === 0 ? 'text-green-600' : diff < 0 ? 'text-red-600' : 'text-amber-600'
+                        }`}>
+                          {diff === 0
+                            ? '✓ Coincide — se registrará sin diferencia'
+                            : diff < 0
+                              ? `Faltan ${fmtEuros(-diff)}`
+                              : `Sobran ${fmtEuros(diff)}`}
+                        </p>
+                      );
+                    })()}
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">Nota (opcional)</label>
+                      <input
+                        type="text"
+                        value={cuadreNota}
+                        onChange={e => setCuadreNota(e.target.value)}
+                        placeholder="Ej: pagué algo y olvidé apuntarlo..."
+                        className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      El saldo se ajustará automáticamente a lo contado y la diferencia quedará registrada en los movimientos.
+                    </p>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        onClick={() => saveCuadre(parseFloat(contado))}
+                        disabled={cuadreSaving || contado === ''}
+                        className="bg-mavic-pink text-white font-bold px-5 py-2.5 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
+                      >
+                        {cuadreSaving ? 'Guardando...' : 'Guardar cuadre'}
+                      </button>
+                      <button
+                        onClick={() => { setNoCoincide(false); setContado(''); setCuadreError(''); }}
+                        disabled={cuadreSaving}
+                        className="bg-white border border-gray-200 text-gray-500 font-bold px-4 py-2.5 rounded-lg text-sm disabled:opacity-50 transition hover:text-gray-700"
+                      >
+                        ← Volver
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {cuadreError && (
+                  <p className="text-sm font-semibold text-red-600 mt-3">Error: {cuadreError}</p>
+                )}
               </div>
             </div>
           </div>
