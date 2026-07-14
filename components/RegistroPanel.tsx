@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import VentasPanel from '@/components/VentasPanel';
 import RegistroStats from '@/components/RegistroStats';
+import MonthNav from '@/components/MonthNav';
 import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora, round2 } from '@/lib/registro-format';
 
 interface Movimiento {
@@ -15,9 +16,18 @@ interface Movimiento {
   importe: number;
   categoria?: string | null;
   nota: string | null;
+  origen: 'manual' | 'venta' | 'liquidacion' | 'cuadre';
   quien_nombre: string;
   created_at: string;
 }
+
+// Etiqueta del chip de origen — 'manual' no lleva chip (es el caso normal).
+const ORIGEN_LABEL: Record<Movimiento['origen'], string | null> = {
+  manual: null,
+  venta: 'Venta',
+  liquidacion: 'Liquidación',
+  cuadre: 'Cuadre',
+};
 
 interface Cuadre {
   id: string;
@@ -59,9 +69,9 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
 
   const [pageSize, setPageSize] = useState<PageSize>(20);
+  const [formOpen, setFormOpen] = useState(false);
 
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [direccion, setDireccion] = useState<'+' | '-'>('+');
@@ -104,7 +114,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
     const [{ data }, { data: cuadresData }] = await Promise.all([
       supabase
         .from('registro_movimientos')
-        .select('id, fecha, direccion, importe, nota, quien_nombre, created_at')
+        .select('id, fecha, direccion, importe, nota, origen, quien_nombre, created_at')
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
       supabase
@@ -144,6 +154,25 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   // movimientos que el tope más alto de la lista fija (100).
   const permiteMesCompleto = delPeriodo.length > 100;
   const visiblesPeriodo = pageSize === 'mes-completo' ? delPeriodo : delPeriodo.slice(0, pageSize);
+
+  // Estilo extracto bancario: los movimientos visibles agrupados por día.
+  const gruposPorDia = visiblesPeriodo.reduce<{ fecha: string; movs: Movimiento[] }[]>((acc, m) => {
+    const ultimo = acc[acc.length - 1];
+    if (ultimo && ultimo.fecha === m.fecha) ultimo.movs.push(m);
+    else acc.push({ fecha: m.fecha, movs: [m] });
+    return acc;
+  }, []);
+
+  const fechaGrupo = (fecha: string) => {
+    const hoy = new Date();
+    const ayer = new Date(hoy.getTime() - 86400000);
+    if (fecha === hoy.toISOString().slice(0, 10)) return 'Hoy';
+    if (fecha === ayer.toISOString().slice(0, 10)) return 'Ayer';
+    const [y, mo, d] = fecha.split('-').map(Number);
+    const txt = new Date(y, mo - 1, d).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+    return txt.charAt(0).toUpperCase() + txt.slice(1);
+  };
+
 
   useEffect(() => {
     // Si veníamos en "mes completo" y el nuevo mes ya no lo necesita, volver al default.
@@ -271,30 +300,43 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
 
   return (
     <div className="min-h-screen bg-mavic-beige">
-      <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
-        <div className="max-w-3xl mx-auto px-4 py-5 flex justify-between items-center">
-          <div>
-            <h1 className="text-xl font-bold">Registro</h1>
-            <p className="text-white/80 text-sm">{profile?.name}</p>
+      {/* La marca queda como línea de acento; el header es sobrio (MAVIC-14). */}
+      <div className="h-1 bg-gradient-to-r from-mavic-pink to-mavic-gold" />
+      <header className="bg-white border-b border-gray-200">
+        <div className={`${tab === 'movimientos' ? 'max-w-3xl' : 'max-w-5xl'} mx-auto px-4 py-3 flex items-center justify-between gap-3`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => router.push(homeHref)}
+              className="flex items-center gap-1 rounded-full border border-gray-200 pl-2 pr-3.5 py-1.5 text-sm font-semibold text-gray-500 hover:text-mavic-black hover:border-gray-300 transition flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+              <span className="hidden sm:inline">Panel de control</span>
+              <span className="sm:hidden">Panel</span>
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-mavic-black leading-tight">Registro</h1>
+              <p className="text-xs text-gray-400 truncate">{profile?.name}</p>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1 flex-shrink-0">
             {configHref && (
               <Link
                 href={configHref}
-                className="text-white/80 hover:text-white text-sm font-semibold transition"
+                aria-label="Configuración"
+                title="Configuración"
+                className="p-2 rounded-full text-gray-400 hover:text-mavic-black hover:bg-gray-100 transition"
               >
-                ⚙ Configuración
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.28z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
               </Link>
             )}
             <button
-              onClick={() => router.push(homeHref)}
-              className="text-white/80 hover:text-white text-sm font-semibold transition"
-            >
-              ← Inicio
-            </button>
-            <button
               onClick={async () => { await supabase.auth.signOut(); router.push(loginHref); }}
-              className="text-white/80 hover:text-white text-sm font-semibold transition"
+              className="px-3 py-2 rounded-full text-sm font-semibold text-gray-400 hover:text-mavic-black hover:bg-gray-100 transition"
             >
               Salir
             </button>
@@ -303,40 +345,25 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
       </header>
 
       <main className={`${tab === 'movimientos' ? 'max-w-3xl' : 'max-w-5xl'} mx-auto px-4 py-6`}>
-        {/* Pestañas */}
-        <div className="flex gap-2 mb-5">
-          {isAdmin && (
+        {/* Pestañas — control segmentado */}
+        <div className="inline-flex bg-gray-200/70 rounded-full p-1 mb-5">
+          {([
+            ...(isAdmin ? [['movimientos', 'Movimientos'] as const] : []),
+            ['servicios', 'Servicios vendidos'] as const,
+            ['estadisticas', 'Estadísticas'] as const,
+          ]).map(([key, label]) => (
             <button
-              onClick={() => setTab('movimientos')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
-                tab === 'movimientos'
-                  ? 'bg-mavic-pink text-white shadow'
-                  : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-4 py-1.5 rounded-full text-sm font-semibold transition ${
+                tab === key
+                  ? 'bg-white text-mavic-black shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              Movimientos
+              {label}
             </button>
-          )}
-          <button
-            onClick={() => setTab('servicios')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
-              tab === 'servicios'
-                ? 'bg-mavic-pink text-white shadow'
-                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
-            }`}
-          >
-            Servicios vendidos
-          </button>
-          <button
-            onClick={() => setTab('estadisticas')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
-              tab === 'estadisticas'
-                ? 'bg-mavic-pink text-white shadow'
-                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
-            }`}
-          >
-            Estadísticas
-          </button>
+          ))}
         </div>
 
         {tab === 'estadisticas' ? (
@@ -350,38 +377,59 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
           />
         ) : (
           <>
+        {/* Saldo — tarjeta hero */}
+        <div className="bg-mavic-black rounded-2xl p-6 mb-4 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold text-white/50 uppercase tracking-wide mb-1">Saldo actual</p>
+            <p className={`text-4xl font-bold tabular-nums ${saldo < 0 ? 'text-red-400' : 'text-white'}`}>
+              {fmtEuros(saldo)}
+            </p>
+          </div>
+          <button
+            onClick={() => openCuadre('cierre')}
+            className="bg-white/10 border border-white/20 text-white text-sm font-bold px-5 py-2.5 rounded-full hover:bg-white/20 transition"
+          >
+            Cierre de caja
+          </button>
+        </div>
+
         {/* Aviso de apertura: sin cuadre registrado hoy (MAVIC-25) */}
         {!hayCuadreHoy && (
-          <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-3 mb-4 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm font-semibold text-amber-800">Aún no has cuadrado la caja hoy.</p>
             <button
               onClick={() => openCuadre('apertura')}
-              className="bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg hover:bg-amber-600 transition"
+              className="bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-full hover:bg-amber-600 transition"
             >
               Contar ahora
             </button>
           </div>
         )}
 
-        {/* Saldo */}
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-emerald-400 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Saldo actual</p>
-            <p className={`text-3xl font-bold ${saldo < 0 ? 'text-red-600' : 'text-mavic-black'}`}>
-              {fmtEuros(saldo)}
-            </p>
-          </div>
+        {/* Nuevo movimiento — plegado tras un botón para que el saldo y el
+            extracto (lo que más se consulta) queden arriba (MAVIC-14) */}
+        {!formOpen ? (
           <button
-            onClick={() => openCuadre('cierre')}
-            className="bg-mavic-black text-white text-sm font-bold px-5 py-2.5 rounded-lg hover:bg-mavic-black/85 transition"
+            onClick={() => setFormOpen(true)}
+            className="w-full bg-white border border-gray-200 hover:border-gray-300 rounded-2xl px-5 py-3.5 mb-4 flex items-center gap-2.5 text-sm font-bold text-mavic-black transition"
           >
-            Cierre de caja
+            <span className="w-6 h-6 rounded-full bg-mavic-pink/25 text-mavic-black flex items-center justify-center text-base leading-none">+</span>
+            Nuevo movimiento
           </button>
-        </div>
-
-        {/* Nuevo movimiento */}
-        <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-mavic-pink">
-          <h2 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Nuevo movimiento</h2>
+        ) : (
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Nuevo movimiento</h2>
+            <button
+              onClick={() => setFormOpen(false)}
+              aria-label="Cerrar formulario"
+              className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           <form onSubmit={handleSubmit} className="space-y-3">
             <div className="flex flex-wrap gap-3">
               <div>
@@ -461,40 +509,20 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             </div>
           </form>
         </div>
+        )}
 
-        {/* Filtro */}
-        <div className="flex flex-wrap items-end gap-4 mb-3">
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
-            <select
-              value={month}
-              onChange={e => setMonth(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
-            >
-              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Año</label>
-            <select
-              value={year}
-              onChange={e => setYear(parseInt(e.target.value))}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
-            >
-              {years.map(y => <option key={y} value={y}>{y}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-gray-600 mb-1">Mostrar</label>
-            <select
-              value={pageSize}
-              onChange={e => setPageSize(e.target.value === 'mes-completo' ? 'mes-completo' : parseInt(e.target.value) as typeof PAGE_SIZES[number])}
-              className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
-            >
-              {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
-              {permiteMesCompleto && <option value="mes-completo">Mes completo</option>}
-            </select>
-          </div>
+        {/* Navegación de mes + tamaño de página */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+          <MonthNav month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+          <select
+            value={pageSize}
+            aria-label="Movimientos a mostrar"
+            onChange={e => setPageSize(e.target.value === 'mes-completo' ? 'mes-completo' : parseInt(e.target.value) as typeof PAGE_SIZES[number])}
+            className="px-3 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
+          >
+            {PAGE_SIZES.map(n => <option key={n} value={n}>Últimos {n}</option>)}
+            {permiteMesCompleto && <option value="mes-completo">Mes completo</option>}
+          </select>
         </div>
 
         {visiblesPeriodo.length < delPeriodo.length && (
@@ -503,77 +531,64 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
           </p>
         )}
 
-        {/* Tabla */}
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">Fecha</th>
-                  <th className="px-3 py-3 text-right font-semibold text-gray-700">Importe</th>
-                  <th className="px-3 py-3 text-left font-semibold text-gray-700">Nota</th>
-                  <th className="px-3 py-3 text-left font-semibold text-gray-700">Registrado por</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiblesPeriodo.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
-                      No hay movimientos este mes.
-                    </td>
-                  </tr>
-                ) : visiblesPeriodo.map(m => (
-                  <tr key={m.id} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-700">{fmtFecha(m.fecha)}</td>
-                    <td className={`px-3 py-2 text-right font-semibold ${m.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                      {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)}
-                    </td>
-                    <td className="px-3 py-2 text-gray-500">
-                      {m.nota ? (
-                        <button
-                          type="button"
-                          onClick={() => setDetalleMov(m)}
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-mavic-pink hover:text-mavic-pink/80 transition"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124M15.75 17.25h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" />
-                          </svg>
-                          Ver nota
-                        </button>
-                      ) : (
-                        <span className="text-gray-300">—</span>
+        {/* Extracto — movimientos agrupados por día, fila = transacción (MAVIC-14) */}
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          {visiblesPeriodo.length === 0 ? (
+            <p className="px-5 py-10 text-center text-sm text-gray-400">No hay movimientos este mes.</p>
+          ) : gruposPorDia.map(g => (
+            <div key={g.fecha}>
+              <div className="px-5 pt-3.5 pb-1.5 text-xs font-semibold text-gray-400">
+                {fechaGrupo(g.fecha)}
+              </div>
+              {g.movs.map(m => (
+                <button
+                  key={m.id}
+                  onClick={() => setDetalleMov(m)}
+                  className="w-full px-5 py-3 flex items-center gap-3 text-left hover:bg-gray-50 transition border-b border-gray-100 last:border-b-0"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-semibold text-mavic-black truncate">
+                        {m.nota || (ORIGEN_LABEL[m.origen] ?? 'Movimiento')}
+                      </span>
+                      {ORIGEN_LABEL[m.origen] && (
+                        <span className="flex-shrink-0 text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
+                          {ORIGEN_LABEL[m.origen]}
+                        </span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-gray-500">{m.quien_nombre}</td>
-                  </tr>
-                ))}
+                    </div>
+                    <p className="text-xs text-gray-400 truncate">{m.quien_nombre}</p>
+                  </div>
+                  <span className={`flex-shrink-0 text-sm font-bold tabular-nums ${m.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
+                    {m.direccion === '+' ? '+' : '−'} {fmtEuros(m.importe)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ))}
 
-                <tr className="bg-mavic-pink/10 font-bold border-t-2 border-mavic-pink/30">
-                  <td className="px-4 py-3 text-mavic-black">TOTAL DEL MES</td>
-                  <td className={`px-3 py-3 text-right text-lg ${totalPeriodo < 0 ? 'text-red-600' : 'text-mavic-pink'}`}>
-                    {totalPeriodo >= 0 ? '+' : '−'} {fmtEuros(Math.abs(totalPeriodo))}
-                  </td>
-                  <td colSpan={2}></td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="px-5 py-3.5 bg-gray-50 border-t border-gray-200 flex items-center justify-between">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wide">Total del mes</span>
+            <span className={`text-base font-bold tabular-nums ${totalPeriodo < 0 ? 'text-red-600' : 'text-mavic-black'}`}>
+              {totalPeriodo >= 0 ? '+' : '−'} {fmtEuros(Math.abs(totalPeriodo))}
+            </span>
           </div>
         </div>
 
         {/* Últimos cuadres (MAVIC-25) */}
         {cuadres.length > 0 && (
-          <div className="bg-white rounded-lg shadow-lg p-5 mt-5">
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 mt-4">
             <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Últimos cuadres de caja</h2>
             <ul className="divide-y divide-gray-100">
               {cuadres.map(c => (
                 <li key={c.id} className="py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                   <span className="text-gray-500 w-28">{fmtFechaHora(c.created_at)}</span>
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${
                     c.tipo === 'cierre' ? 'bg-mavic-black text-white' : 'bg-gray-100 text-gray-600'
                   }`}>
                     {c.tipo === 'cierre' ? 'Cierre' : 'Apertura'}
                   </span>
-                  <span className={`font-semibold ${
+                  <span className={`font-semibold tabular-nums ${
                     c.diferencia === 0 ? 'text-green-600' : c.diferencia < 0 ? 'text-red-600' : 'text-amber-600'
                   }`}>
                     {c.diferencia === 0
@@ -602,16 +617,16 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             }`}
           />
           <div
-            className={`relative bg-mavic-beige rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
+            className={`relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
               detalleVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
             }`}
           >
-            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0 rounded-t-xl">
-              <h2 className="text-lg font-bold">Detalle del movimiento</h2>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+              <h2 className="text-base font-bold text-mavic-black">Detalle del movimiento</h2>
               <button
                 onClick={closeDetalle}
                 aria-label="Cerrar"
-                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white flex-shrink-0"
+                className="p-2 -mr-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mavic-pink flex-shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -619,17 +634,21 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-6">
-              <div className="bg-white rounded-xl shadow p-5 space-y-3">
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+              <p className={`text-3xl font-bold tabular-nums text-center mb-1 ${detalleMov.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
+                {detalleMov.direccion === '+' ? '+' : '−'} {fmtEuros(detalleMov.importe)}
+              </p>
+              {ORIGEN_LABEL[detalleMov.origen] && (
+                <p className="text-center mb-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-gray-100 rounded-full px-2 py-0.5">
+                    {ORIGEN_LABEL[detalleMov.origen]}
+                  </span>
+                </p>
+              )}
+              <div className="space-y-3 mt-4">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Fecha</span>
-                  <span className="text-sm font-semibold text-mavic-black">{fmtFecha(detalleMov.fecha)}</span>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Importe</span>
-                  <span className={`text-lg font-bold ${detalleMov.direccion === '+' ? 'text-green-600' : 'text-red-600'}`}>
-                    {detalleMov.direccion === '+' ? '+' : '−'} {fmtEuros(detalleMov.importe)}
-                  </span>
+                  <span className="text-sm font-semibold text-mavic-black tabular-nums">{fmtFecha(detalleMov.fecha)}</span>
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Registrado por</span>
@@ -637,12 +656,12 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
                 </div>
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Hora de registro</span>
-                  <span className="text-sm text-gray-700">{fmtFechaHora(detalleMov.created_at)}</span>
+                  <span className="text-sm text-gray-700 tabular-nums">{fmtFechaHora(detalleMov.created_at)}</span>
                 </div>
                 <div className="pt-1 border-t border-gray-100">
                   <span className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5 mt-2">Nota</span>
                   <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-y-auto">
-                    {detalleMov.nota}
+                    {detalleMov.nota ?? <span className="text-gray-300">Sin nota</span>}
                   </p>
                 </div>
               </div>
@@ -661,17 +680,17 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             }`}
           />
           <div
-            className={`relative bg-mavic-beige rounded-xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
+            className={`relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] flex flex-col motion-safe:transition motion-safe:duration-200 motion-safe:ease-out ${
               cuadreVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
             }`}
           >
-            <div className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white px-6 py-5 flex items-start justify-between gap-4 flex-shrink-0 rounded-t-xl">
-              <h2 className="text-lg font-bold">{cuadreTipo === 'cierre' ? 'Cierre de caja' : 'Cuadre de caja'}</h2>
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+              <h2 className="text-base font-bold text-mavic-black">{cuadreTipo === 'cierre' ? 'Cierre de caja' : 'Cuadre de caja'}</h2>
               <button
                 onClick={closeCuadre}
                 disabled={cuadreSaving}
                 aria-label="Cerrar"
-                className="p-2.5 -mr-2 -mt-1 rounded-full hover:bg-white/15 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white flex-shrink-0"
+                className="p-2 -mr-2 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors duration-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-mavic-pink flex-shrink-0"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -680,11 +699,11 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
             </div>
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
-              <div className="bg-white rounded-xl shadow p-5">
+              <div>
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                   Según el registro, en el cajón debería haber
                 </p>
-                <p className="text-3xl font-bold text-mavic-black">{fmtEuros(saldo)}</p>
+                <p className="text-3xl font-bold text-mavic-black tabular-nums">{fmtEuros(saldo)}</p>
 
                 {!noCoincide ? (
                   <>

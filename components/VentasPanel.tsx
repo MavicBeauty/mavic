@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { MONTHS, fmtEuros, fmtFecha, fmtFechaHora, round2, plural } from '@/lib/registro-format';
+import { fmtEuros, fmtFecha, fmtFechaHora, round2, plural } from '@/lib/registro-format';
+import MonthNav from '@/components/MonthNav';
 
 interface Venta {
   id: string;
@@ -103,8 +104,8 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
-  const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
   const [sort, setSort] = useState<SortKey>('fecha-desc');
+  const [formOpen, setFormOpen] = useState(false);
 
   // Formulario nueva venta
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
@@ -511,42 +512,62 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
       <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
         {isAdmin ? 'Sin liquidar — se pone a 0 al marcar pagado' : 'Pendiente de cobrar — se pone a 0 cuando te pagan'}
       </p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4">
         {isAdmin && (
-          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-emerald-400">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Parte negocio</p>
-            <p className="text-2xl font-bold text-emerald-700">{fmtEuros(pendNegocio)}</p>
+            <p className="text-2xl font-bold text-emerald-700 tabular-nums">{fmtEuros(pendNegocio)}</p>
           </div>
         )}
         {isAdmin ? (
           Array.from(pendientePorEmpleada.entries()).map(([id, p]) => (
-            <div key={id} className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
+            <div key={id} className="bg-white border border-gray-200 rounded-2xl p-4">
               <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{p.nombre}</p>
-              <p className="text-2xl font-bold text-mavic-black">{fmtEuros(p.total)}</p>
+              <p className="text-2xl font-bold text-mavic-black tabular-nums">{fmtEuros(p.total)}</p>
               <p className="text-xs text-gray-400 mt-0.5">{plural(p.count, 'servicio', 'servicios')}</p>
             </div>
           ))
         ) : (
-          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tu comisión</p>
-            <p className="text-2xl font-bold text-mavic-black">{fmtEuros(miPendiente?.total ?? 0)}</p>
+            <p className="text-2xl font-bold text-mavic-black tabular-nums">{fmtEuros(miPendiente?.total ?? 0)}</p>
             <p className="text-xs text-gray-400 mt-0.5">{plural(miPendiente?.count ?? 0, 'servicio', 'servicios')}</p>
           </div>
         )}
-        <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-gray-300">
+        <div className="bg-white border border-gray-200 rounded-2xl p-4">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">¿Cómo se cobró?</p>
           <p className="text-sm text-blue-800">
-            💳 Datáfono (TPV Booksy): <span className="font-bold">{fmtEuros(pendDatafono)}</span>
+            💳 Datáfono (TPV Booksy): <span className="font-bold tabular-nums">{fmtEuros(pendDatafono)}</span>
           </p>
           <p className="text-sm text-green-800">
-            💶 Efectivo: <span className="font-bold">{fmtEuros(pendEfectivo)}</span>
+            💶 Efectivo: <span className="font-bold tabular-nums">{fmtEuros(pendEfectivo)}</span>
           </p>
         </div>
       </div>
 
-      {/* Nueva venta */}
-      <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-mavic-pink">
-        <h2 className="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wide">Registrar servicio vendido</h2>
+      {/* Nueva venta — plegada tras un botón, igual que Nuevo movimiento (MAVIC-14) */}
+      {!formOpen ? (
+        <button
+          onClick={() => setFormOpen(true)}
+          className="w-full bg-white border border-gray-200 hover:border-gray-300 rounded-2xl px-5 py-3.5 mb-4 flex items-center gap-2.5 text-sm font-bold text-mavic-black transition"
+        >
+          <span className="w-6 h-6 rounded-full bg-mavic-pink/25 text-mavic-black flex items-center justify-center text-base leading-none">+</span>
+          Registrar servicio vendido
+        </button>
+      ) : (
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 mb-4">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Registrar servicio vendido</h2>
+          <button
+            onClick={() => setFormOpen(false)}
+            aria-label="Cerrar formulario"
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <form onSubmit={handleAddVenta} className="space-y-3">
           <div className="flex flex-wrap gap-3">
             <div>
@@ -665,33 +686,25 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
           </button>
         </form>
       </div>
+      )}
 
       {/* Filtros y orden */}
-      <div className="flex flex-wrap items-end gap-4 mb-3">
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
-          <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className={selectCls}>
-            {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Año</label>
-          <select value={year} onChange={e => setYear(parseInt(e.target.value))} className={selectCls}>
-            {years.map(y => <option key={y} value={y}>{y}</option>)}
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-gray-600 mb-1">Ordenar por</label>
-          <select value={sort} onChange={e => setSort(e.target.value as SortKey)} className={selectCls}>
-            {SORT_OPTIONS.filter(o => isAdmin || o.value !== 'empleada').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-          </select>
-        </div>
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <MonthNav month={month} year={year} onChange={(m, y) => { setMonth(m); setYear(y); }} />
+        <select
+          value={sort}
+          aria-label="Ordenar por"
+          onChange={e => setSort(e.target.value as SortKey)}
+          className="px-3 py-2 bg-white border border-gray-200 rounded-full text-sm font-semibold text-gray-600 focus:outline-none focus:ring-2 focus:ring-mavic-pink select-mavic"
+        >
+          {SORT_OPTIONS.filter(o => isAdmin || o.value !== 'empleada').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
         {isAdmin && seleccion.size > 0 && (
           <div className="ml-auto">
             <button
               onClick={() => abrirPago(ventasSel)}
               disabled={ventasSel.length === 0 || pagando}
-              className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
+              className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-full text-sm disabled:opacity-50 transition hover:bg-emerald-700"
             >
               {`Marcar pagado — ${fmtEuros(totalSel)} (${ventasSel.length})`}
             </button>
@@ -702,7 +715,7 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
             <button
               onClick={() => abrirPago(pendientes)}
               disabled={pagando}
-              className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
+              className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-full text-sm disabled:opacity-50 transition hover:bg-emerald-700"
             >
               {`Marcar todo pagado — ${fmtEuros(totalPendTodas)} (${pendientes.length})`}
             </button>
@@ -711,7 +724,7 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
       </div>
 
       {/* Tabla de ventas */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mb-4">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-200">
@@ -768,7 +781,7 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
                       {v.nota && <span className="block text-xs text-gray-400">{v.nota}</span>}
                     </td>
                     {isAdmin && <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>}
-                    <td className="px-3 py-2 text-right text-gray-700">{fmtEuros(v.precio)}</td>
+                    <td className="px-3 py-2 text-right text-gray-700 tabular-nums">{fmtEuros(v.precio)}</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs font-semibold ${v.metodo_pago === 'datafono' ? 'text-blue-700' : 'text-green-700'}`}>
                         {v.metodo_pago === 'datafono' ? '💳 Datáfono' : '💶 Efectivo'}
@@ -777,9 +790,9 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
                         <span className="ml-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-700 border border-purple-200">Booksy</span>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-right text-gray-500">{v.comision_pct}%</td>
-                    <td className="px-3 py-2 text-right font-semibold text-mavic-black">{fmtEuros(v.parte_empleada)}</td>
-                    {isAdmin && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)}</td>}
+                    <td className="px-3 py-2 text-right text-gray-500 tabular-nums">{v.comision_pct}%</td>
+                    <td className="px-3 py-2 text-right font-semibold text-mavic-black tabular-nums">{fmtEuros(v.parte_empleada)}</td>
+                    {isAdmin && <td className="px-3 py-2 text-right font-semibold text-emerald-700 tabular-nums">{fmtEuros(v.parte_negocio)}</td>}
                     <td className="px-3 py-2 whitespace-nowrap">
                       {est.texto === 'Pendiente' && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300">Pendiente</span>
@@ -812,7 +825,7 @@ export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPan
       </div>
 
       {/* Log de liquidaciones */}
-      <div className="bg-white rounded-lg shadow-lg p-5">
+      <div className="bg-white border border-gray-200 rounded-2xl p-5">
         <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Liquidaciones (historial de pagos)</h2>
         {liquidaciones.length === 0 ? (
           <p className="text-sm text-gray-400">Todavía no hay pagos registrados.</p>
