@@ -245,7 +245,12 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
         {tab === 'estadisticas' ? (
           <RegistroStats isAdmin={isAdmin} />
         ) : tab === 'servicios' && profile ? (
-          <VentasPanel profile={profile} isAdmin={isAdmin} />
+          <VentasPanel
+            profile={profile}
+            isAdmin={isAdmin}
+            // Tras pagar, volver a Movimientos para ver la salida del cajón (MAVIC-23)
+            onLiquidado={isAdmin ? () => { loadMovimientos(); setTab('movimientos'); } : undefined}
+          />
         ) : (
           <>
         {/* Saldo */}

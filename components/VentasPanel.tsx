@@ -33,6 +33,8 @@ interface Liquidacion {
   pagado_at: string;
   recibido_por_nombre: string | null;
   recibido_at: string | null;
+  efectivo_origen: 'cajon' | 'otro';
+  efectivo_nota: string | null;
 }
 
 interface Edicion {
@@ -59,6 +61,8 @@ interface Empleada {
 interface VentasPanelProps {
   profile: { id: string; name: string };
   isAdmin: boolean;
+  // Tras un pago correcto (admin): saltar a Movimientos para ver la salida del cajón (MAVIC-23)
+  onLiquidado?: () => void;
 }
 
 type SortKey = 'fecha-desc' | 'fecha-asc' | 'importe-desc' | 'importe-asc' | 'empleada' | 'estado';
@@ -87,7 +91,7 @@ function fmtValorCambio(campo: string, valor: string) {
 // venta (p.ej. si ya no está activo en el catálogo).
 const PRODUCTO_ACTUAL = '__actual__';
 
-export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
+export default function VentasPanel({ profile, isAdmin, onLiquidado }: VentasPanelProps) {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -118,6 +122,11 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   const [pagando, setPagando] = useState(false);
   const [confirmando, setConfirmando] = useState<string | null>(null);
 
+  // Popup de pago (MAVIC-22/23): qué se paga y de dónde sale el efectivo
+  const [pagoVentas, setPagoVentas] = useState<Venta[] | null>(null);
+  const [pagoOrigen, setPagoOrigen] = useState<'cajon' | 'otro'>('cajon');
+  const [pagoNota, setPagoNota] = useState('');
+
   // Edición de servicios sin liquidar (MAVIC-26)
   const [ediciones, setEdiciones] = useState<Edicion[]>([]);
   const [editVenta, setEditVenta] = useState<Venta | null>(null);
@@ -142,7 +151,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         .order('created_at', { ascending: false }),
       supabase
         .from('registro_liquidaciones')
-        .select('id, empleada_id, empleada_nombre, total, num_servicios, pagado_por_nombre, pagado_at, recibido_por_nombre, recibido_at')
+        .select('id, empleada_id, empleada_nombre, total, num_servicios, pagado_por_nombre, pagado_at, recibido_por_nombre, recibido_at, efectivo_origen, efectivo_nota')
         .order('pagado_at', { ascending: false }),
       supabase
         .from('registro_productos')
@@ -365,6 +374,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     pendientePorEmpleada.set(v.empleada_id, cur);
   }
   const miPendiente = pendientePorEmpleada.get(profile.id);
+  const totalPendTodas = round2(pendientes.reduce((s, v) => s + v.parte_empleada, 0));
 
   // ── Orden de la lista ────────────────────────────────────────────
   const estadoDe = (v: Venta): { orden: number; texto: string; detalle: string | null } => {
@@ -396,48 +406,72 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   };
 
   const ventasSel = ventas.filter(v => seleccion.has(v.id) && !v.liquidacion_id);
-  const empleadasEnSel = new Set(ventasSel.map(v => v.empleada_id));
-  const selValida = ventasSel.length > 0 && empleadasEnSel.size === 1;
   const totalSel = round2(ventasSel.reduce((s, v) => s + v.parte_empleada, 0));
 
-  const handleMarcarPagado = async () => {
-    if (!selValida) return;
+  // MAVIC-22/23: el pago (selección o todo) se confirma en un popup que
+  // pregunta de dónde sale el efectivo. Admite varias empleadas a la vez:
+  // se crea una liquidación por empleada.
+  const abrirPago = (vs: Venta[]) => {
+    setPagoOrigen('cajon');
+    setPagoNota('');
+    setPagoVentas(vs.filter(v => !v.liquidacion_id));
+  };
+
+  const gruposPago = new Map<string, { nombre: string; ventas: Venta[]; total: number }>();
+  for (const v of pagoVentas ?? []) {
+    const cur = gruposPago.get(v.empleada_id) ?? { nombre: v.empleada_nombre, ventas: [], total: 0 };
+    cur.ventas.push(v);
+    cur.total = round2(cur.total + v.parte_empleada);
+    gruposPago.set(v.empleada_id, cur);
+  }
+  const totalPago = round2(Array.from(gruposPago.values()).reduce((s, g) => s + g.total, 0));
+
+  const handleConfirmarPago = async () => {
+    if (!pagoVentas || pagoVentas.length === 0) return;
+    const notaOtro = pagoNota.trim();
+    if (pagoOrigen === 'otro' && !notaOtro) { flash('Error: indica de dónde sale el dinero'); return; }
     setPagando(true);
-    const empId = ventasSel[0].empleada_id;
-    const { data: liq, error } = await supabase
-      .from('registro_liquidaciones')
-      .insert({
-        empleada_id: empId,
-        empleada_nombre: ventasSel[0].empleada_nombre,
-        total: totalSel,
-        num_servicios: ventasSel.length,
-        pagado_por: profile.id,
-        pagado_por_nombre: profile.name,
-      })
-      .select('id')
-      .single();
-    if (error || !liq) {
-      setPagando(false);
-      flash(`Error: ${error?.message ?? 'no se pudo crear la liquidación'}`);
-      return;
+    const avisos: string[] = [];
+    for (const [empId, g] of gruposPago) {
+      const { data: liq, error } = await supabase
+        .from('registro_liquidaciones')
+        .insert({
+          empleada_id: empId,
+          empleada_nombre: g.nombre,
+          total: g.total,
+          num_servicios: g.ventas.length,
+          pagado_por: profile.id,
+          pagado_por_nombre: profile.name,
+          efectivo_origen: pagoOrigen,
+          efectivo_nota: pagoOrigen === 'otro' ? notaOtro : null,
+        })
+        .select('id')
+        .single();
+      if (error || !liq) {
+        avisos.push(`${g.nombre}: ${error?.message ?? 'no se pudo crear la liquidación'}`);
+        continue;
+      }
+      const ids = g.ventas.map(v => v.id);
+      const { data: updated, error: updErr } = await supabase
+        .from('registro_ventas')
+        .update({ liquidacion_id: (liq as { id: string }).id })
+        .in('id', ids)
+        .is('liquidacion_id', null)
+        .select('id');
+      const n = (updated as Array<{ id: string }> | null)?.length ?? 0;
+      if (updErr) avisos.push(`${g.nombre}: ${updErr.message}`);
+      else if (n !== ids.length) avisos.push(`${g.nombre}: solo ${n} de ${ids.length} servicios se marcaron`);
     }
-    const ids = ventasSel.map(v => v.id);
-    const { data: updated, error: updErr } = await supabase
-      .from('registro_ventas')
-      .update({ liquidacion_id: (liq as { id: string }).id })
-      .in('id', ids)
-      .is('liquidacion_id', null)
-      .select('id');
     setPagando(false);
-    if (updErr) { flash(`Error: ${updErr.message}`); return; }
-    const n = (updated as Array<{ id: string }> | null)?.length ?? 0;
-    if (n !== ids.length) {
-      flash(`Aviso: solo ${n} de ${ids.length} servicios se marcaron — recarga y revisa`);
-    } else {
-      flash(`✓ Pagado: ${fmtEuros(totalSel)} (${ids.length} servicios)`);
-    }
+    setPagoVentas(null);
     setSeleccion(new Set());
     load();
+    if (avisos.length > 0) {
+      flash(`Aviso: ${avisos.join(' · ')} — revisa la lista`);
+      return;
+    }
+    flash(`✓ Pagado: ${fmtEuros(totalPago)}`);
+    onLiquidado?.();
   };
 
   const handleConfirmarRecibido = async (liqId: string) => {
@@ -653,16 +687,24 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
           </select>
         </div>
         {isAdmin && seleccion.size > 0 && (
-          <div className="ml-auto flex items-center gap-3">
-            {!selValida && ventasSel.length > 0 && (
-              <span className="text-xs font-semibold text-red-600">Elige servicios de una sola empleada</span>
-            )}
+          <div className="ml-auto">
             <button
-              onClick={handleMarcarPagado}
-              disabled={!selValida || pagando}
+              onClick={() => abrirPago(ventasSel)}
+              disabled={ventasSel.length === 0 || pagando}
               className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
             >
-              {pagando ? 'Pagando...' : `Marcar pagado — ${fmtEuros(totalSel)} (${ventasSel.length})`}
+              {`Marcar pagado — ${fmtEuros(totalSel)} (${ventasSel.length})`}
+            </button>
+          </div>
+        )}
+        {isAdmin && seleccion.size === 0 && pendientes.length > 0 && (
+          <div className="ml-auto">
+            <button
+              onClick={() => abrirPago(pendientes)}
+              disabled={pagando}
+              className="bg-emerald-600 text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
+            >
+              {`Marcar todo pagado — ${fmtEuros(totalPendTodas)} (${pendientes.length})`}
             </button>
           </div>
         )}
@@ -785,6 +827,9 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                   {l.num_servicios === 1 ? 'servicio' : 'servicios'}) a{' '}
                   <span className="font-semibold">{l.empleada_nombre}</span>
                 </span>
+                {l.efectivo_origen === 'otro' && (
+                  <span className="text-xs text-gray-400">🏦 efectivo de: {l.efectivo_nota}</span>
+                )}
                 {l.recibido_at ? (
                   <span className="text-green-700 text-xs font-semibold">
                     ✓ Recibido {fmtFechaHora(l.recibido_at)} por {l.recibido_por_nombre}
@@ -805,6 +850,83 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
           </ul>
         )}
       </div>
+
+      {/* Popup de pago: ¿de dónde sale el efectivo? (MAVIC-22/23) */}
+      {pagoVentas && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => !pagando && setPagoVentas(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Confirmar pago</h3>
+            <ul className="mb-2 space-y-1">
+              {Array.from(gruposPago.entries()).map(([id, g]) => (
+                <li key={id} className="text-sm text-gray-700">
+                  <span className="font-semibold">{g.nombre}:</span>{' '}
+                  <span className="font-bold">{fmtEuros(g.total)}</span> ({plural(g.ventas.length, 'servicio', 'servicios')})
+                </li>
+              ))}
+            </ul>
+            {gruposPago.size > 1 && (
+              <p className="text-sm font-bold text-mavic-black mb-2">Total: {fmtEuros(totalPago)}</p>
+            )}
+            <p className="text-xs font-semibold text-gray-600 mb-1.5 mt-3">¿De dónde sale el dinero?</p>
+            <div className="space-y-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setPagoOrigen('cajon')}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold border transition ${
+                  pagoOrigen === 'cajon'
+                    ? 'bg-green-50 border-green-300 text-green-700'
+                    : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                💶 Del cajón
+                <span className="block text-xs font-normal">Se apunta la salida en Movimientos automáticamente</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPagoOrigen('otro')}
+                className={`w-full text-left px-4 py-2.5 rounded-lg text-sm font-bold border transition ${
+                  pagoOrigen === 'otro'
+                    ? 'bg-blue-50 border-blue-300 text-blue-700'
+                    : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                🏦 De otro sitio (Booksy, banco...)
+                <span className="block text-xs font-normal">El cajón no se toca — apunta de dónde sale</span>
+              </button>
+            </div>
+            {pagoOrigen === 'otro' && (
+              <div className="mb-3">
+                <label className="block text-xs font-semibold text-gray-600 mb-1">¿De dónde exactamente?</label>
+                <input
+                  type="text"
+                  value={pagoNota}
+                  onChange={e => setPagoNota(e.target.value)}
+                  placeholder="Ej: transferencia de Booksy"
+                  autoFocus
+                  className={`w-full ${inputCls}`}
+                />
+              </div>
+            )}
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleConfirmarPago}
+                disabled={pagando || (pagoOrigen === 'otro' && !pagoNota.trim())}
+                className="bg-emerald-600 text-white font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-emerald-700"
+              >
+                {pagando ? 'Pagando...' : `Confirmar pago — ${fmtEuros(totalPago)}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => setPagoVentas(null)}
+                disabled={pagando}
+                className="bg-white text-gray-500 font-bold px-5 py-2 rounded-lg text-sm border border-gray-200 transition hover:text-gray-700"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal de corrección (solo servicios sin liquidar) */}
       {editVenta && (
