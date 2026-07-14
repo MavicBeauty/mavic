@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 interface Venta {
   id: string;
   fecha: string;
+  producto_id: string | null;
   producto_nombre: string;
   precio: number;
   empleada_id: string;
@@ -31,6 +32,14 @@ interface Liquidacion {
   pagado_at: string;
   recibido_por_nombre: string | null;
   recibido_at: string | null;
+}
+
+interface Edicion {
+  id: string;
+  venta_id: string;
+  editado_por_nombre: string;
+  editado_at: string;
+  cambios: Array<{ campo: string; antes: string; despues: string }>;
 }
 
 interface Producto {
@@ -84,6 +93,21 @@ function round2(n: number) {
   return Math.round(n * 100) / 100;
 }
 
+const CAMPO_LABELS: Record<string, string> = {
+  fecha: 'Fecha', producto: 'Servicio', precio: 'Precio (€)', empleada: 'Empleada',
+  comision: 'Comisión %', pago: 'Pago', booksy: 'En Booksy', nota: 'Nota',
+};
+
+function fmtValorCambio(campo: string, valor: string) {
+  if (campo === 'fecha' && /^\d{4}-\d{2}-\d{2}$/.test(valor)) return fmtFecha(valor);
+  if (campo === 'pago') return valor === 'datafono' ? 'Datáfono' : 'Efectivo';
+  return valor === '' ? '—' : valor;
+}
+
+// Valor del select de producto cuando se conserva el producto original de la
+// venta (p.ej. si ya no está activo en el catálogo).
+const PRODUCTO_ACTUAL = '__actual__';
+
 export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   const supabase = createClient();
 
@@ -115,16 +139,26 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
   const [pagando, setPagando] = useState(false);
   const [confirmando, setConfirmando] = useState<string | null>(null);
 
+  // Edición de servicios sin liquidar (MAVIC-26)
+  const [ediciones, setEdiciones] = useState<Edicion[]>([]);
+  const [editVenta, setEditVenta] = useState<Venta | null>(null);
+  const [editForm, setEditForm] = useState({
+    fecha: '', productoId: PRODUCTO_ACTUAL, precio: '', empleadaId: '', pct: '',
+    metodoPago: 'efectivo' as 'efectivo' | 'datafono', enBooksy: false, nota: '',
+  });
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [historialVenta, setHistorialVenta] = useState<Venta | null>(null);
+
   const flash = (text: string) => {
     setMsg(text);
     setTimeout(() => setMsg(''), 4000);
   };
 
   const load = useCallback(async () => {
-    const [ventasRes, liqRes, prodRes, empRes] = await Promise.all([
+    const [ventasRes, liqRes, prodRes, empRes, edicRes] = await Promise.all([
       supabase
         .from('registro_ventas')
-        .select('id, fecha, producto_nombre, precio, empleada_id, empleada_nombre, comision_pct, parte_empleada, parte_negocio, nota, quien_nombre, liquidacion_id, metodo_pago, en_booksy, created_at')
+        .select('id, fecha, producto_id, producto_nombre, precio, empleada_id, empleada_nombre, comision_pct, parte_empleada, parte_negocio, nota, quien_nombre, liquidacion_id, metodo_pago, en_booksy, created_at')
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false }),
       supabase
@@ -143,6 +177,10 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         .eq('role', 'portal')
         .eq('portal_registro', true)
         .order('name'),
+      supabase
+        .from('registro_ventas_ediciones')
+        .select('id, venta_id, editado_por_nombre, editado_at, cambios')
+        .order('editado_at', { ascending: true }),
     ]);
     // numeric columns come back from PostgREST as strings — coerce before summing.
     type VentaRaw = Omit<Venta, 'precio' | 'comision_pct' | 'parte_empleada' | 'parte_negocio'> & {
@@ -164,6 +202,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
       ...e,
       comision_pct: e.comision_pct === null ? null : Number(e.comision_pct),
     })));
+    setEdiciones((edicRes.data as Edicion[] | null) ?? []);
     setLoading(false);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -236,6 +275,94 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
     setNota('');
     setMetodoPago('efectivo');
     setEnBooksy(false);
+    load();
+  };
+
+  // ── Edición de servicios sin liquidar (MAVIC-26) ─────────────────
+  const edicionesPorVenta = new Map<string, Edicion[]>();
+  for (const ed of ediciones) {
+    const list = edicionesPorVenta.get(ed.venta_id) ?? [];
+    list.push(ed);
+    edicionesPorVenta.set(ed.venta_id, list);
+  }
+
+  const puedeEditar = (v: Venta) =>
+    !v.liquidacion_id && (isAdmin || v.empleada_id === profile.id);
+
+  const openEdit = (v: Venta) => {
+    const enCatalogo = v.producto_id != null && productos.some(p => p.id === v.producto_id);
+    setEditForm({
+      fecha: v.fecha,
+      productoId: enCatalogo ? (v.producto_id as string) : PRODUCTO_ACTUAL,
+      precio: String(v.precio),
+      empleadaId: v.empleada_id,
+      pct: String(v.comision_pct),
+      metodoPago: v.metodo_pago,
+      enBooksy: v.en_booksy,
+      nota: v.nota ?? '',
+    });
+    setEditVenta(v);
+  };
+
+  const editPrecioNum = parseFloat(editForm.precio) || 0;
+  const editPctNum = parseFloat(editForm.pct) || 0;
+  const editParteEmpleada = round2(editPrecioNum * editPctNum / 100);
+  const editParteNegocio = round2(editPrecioNum - editParteEmpleada);
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editVenta) return;
+    if (!editPrecioNum || editPrecioNum <= 0) { flash('Error: precio inválido'); return; }
+    if (editPctNum < 0 || editPctNum > 100) { flash('Error: % inválido (0-100)'); return; }
+
+    let prodId = editVenta.producto_id;
+    let prodNombre = editVenta.producto_nombre;
+    if (editForm.productoId !== PRODUCTO_ACTUAL) {
+      const prod = productos.find(p => p.id === editForm.productoId);
+      if (!prod) { flash('Error: elige un producto'); return; }
+      prodId = prod.id;
+      prodNombre = prod.nombre;
+    }
+
+    let empId = editVenta.empleada_id;
+    let empNombre = editVenta.empleada_nombre;
+    if (isAdmin && editForm.empleadaId !== editVenta.empleada_id) {
+      const emp = empleadas.find(x => x.id === editForm.empleadaId);
+      if (!emp) { flash('Error: elige una empleada'); return; }
+      empId = emp.id;
+      empNombre = emp.name;
+    }
+
+    setSavingEdit(true);
+    const { data: updated, error } = await supabase
+      .from('registro_ventas')
+      .update({
+        fecha: editForm.fecha,
+        producto_id: prodId,
+        producto_nombre: prodNombre,
+        precio: editPrecioNum,
+        empleada_id: empId,
+        empleada_nombre: empNombre,
+        comision_pct: editPctNum,
+        parte_empleada: editParteEmpleada,
+        parte_negocio: editParteNegocio,
+        metodo_pago: editForm.metodoPago,
+        en_booksy: editForm.enBooksy,
+        nota: editForm.nota.trim() || null,
+      })
+      .eq('id', editVenta.id)
+      .is('liquidacion_id', null)
+      .select('id');
+    setSavingEdit(false);
+    if (error) { flash(`Error: ${error.message}`); return; }
+    if (!updated || (updated as Array<{ id: string }>).length === 0) {
+      flash('Aviso: no se pudo corregir — puede que ya esté liquidado');
+      setEditVenta(null);
+      load();
+      return;
+    }
+    flash('✓ Servicio corregido');
+    setEditVenta(null);
     load();
   };
 
@@ -569,12 +696,13 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                 {isAdmin && <th className="px-3 py-3 text-right font-semibold text-gray-700">Negocio</th>}
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Estado</th>
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Registró</th>
+                <th className="px-3 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
               {ventasOrdenadas.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 11 : 8} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 12 : 9} className="px-4 py-8 text-center text-gray-400">
                     No hay servicios registrados este mes.
                   </td>
                 </tr>
@@ -597,6 +725,15 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                     <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{fmtFecha(v.fecha)}</td>
                     <td className="px-3 py-2 text-gray-700">
                       {v.producto_nombre}
+                      {edicionesPorVenta.has(v.id) && (
+                        <button
+                          onClick={() => setHistorialVenta(v)}
+                          className="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200 hover:bg-orange-100 transition"
+                          title="Ver historial de cambios"
+                        >
+                          ✎ editado
+                        </button>
+                      )}
                       {v.nota && <span className="block text-xs text-gray-400">{v.nota}</span>}
                     </td>
                     {isAdmin && <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>}
@@ -624,6 +761,17 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                       )}
                     </td>
                     <td className="px-3 py-2 text-gray-500">{v.quien_nombre}</td>
+                    <td className="px-3 py-2">
+                      {puedeEditar(v) && (
+                        <button
+                          onClick={() => openEdit(v)}
+                          className="text-gray-300 hover:text-mavic-pink transition text-base leading-none"
+                          title="Corregir este servicio"
+                        >
+                          ✎
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -668,6 +816,199 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
           </ul>
         )}
       </div>
+
+      {/* Modal de corrección (solo servicios sin liquidar) */}
+      {editVenta && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setEditVenta(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-5 max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-700 mb-1 uppercase tracking-wide">Corregir servicio</h3>
+            <p className="text-xs text-gray-400 mb-4">Cada corrección queda registrada en el historial de cambios.</p>
+            <form onSubmit={handleSaveEdit} className="space-y-3">
+              <div className="flex flex-wrap gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Fecha</label>
+                  <input type="date" value={editForm.fecha} onChange={e => setEditForm(f => ({ ...f, fecha: e.target.value }))} required className={inputCls} />
+                </div>
+                <div className="flex-1 min-w-52">
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Producto</label>
+                  <select
+                    value={editForm.productoId}
+                    onChange={e => {
+                      const id = e.target.value;
+                      const prod = productos.find(p => p.id === id);
+                      setEditForm(f => ({ ...f, productoId: id, precio: prod ? String(prod.precio) : f.precio }));
+                    }}
+                    required
+                    className={`w-full ${inputCls}`}
+                  >
+                    {(editVenta.producto_id == null || !productos.some(p => p.id === editVenta.producto_id)) && (
+                      <option value={PRODUCTO_ACTUAL}>{editVenta.producto_nombre} (actual)</option>
+                    )}
+                    {Array.from(new Set(productos.map(p => p.categoria))).map(cat => (
+                      <optgroup key={cat} label={cat}>
+                        {productos.filter(p => p.categoria === cat).map(p => (
+                          <option key={p.id} value={p.id}>{p.nombre} — {fmtEuros(p.precio)} €</option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Precio €</label>
+                  <input type="number" step="0.01" min="0.01" value={editForm.precio} onChange={e => setEditForm(f => ({ ...f, precio: e.target.value }))} required className={`w-24 ${inputCls}`} />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">¿Cómo se cobró?</label>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(f => ({ ...f, metodoPago: 'efectivo' }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                        editForm.metodoPago === 'efectivo'
+                          ? 'bg-green-50 border-green-300 text-green-700'
+                          : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      💶 Efectivo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(f => ({ ...f, metodoPago: 'datafono' }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                        editForm.metodoPago === 'datafono'
+                          ? 'bg-blue-50 border-blue-300 text-blue-700'
+                          : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      💳 Datáfono
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">¿Está en Booksy?</label>
+                  <div className="flex gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(f => ({ ...f, enBooksy: true }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                        editForm.enBooksy
+                          ? 'bg-purple-50 border-purple-300 text-purple-700'
+                          : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      Sí
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditForm(f => ({ ...f, enBooksy: false }))}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold border transition ${
+                        !editForm.enBooksy
+                          ? 'bg-gray-100 border-gray-300 text-gray-700'
+                          : 'bg-white border-gray-200 text-gray-400 hover:text-gray-600'
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-wrap items-end gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Empleada</label>
+                  {isAdmin ? (
+                    <select
+                      value={editForm.empleadaId}
+                      onChange={e => {
+                        const id = e.target.value;
+                        const emp = empleadas.find(x => x.id === id);
+                        setEditForm(f => ({ ...f, empleadaId: id, pct: emp?.comision_pct != null ? String(emp.comision_pct) : f.pct }));
+                      }}
+                      required
+                      className={inputCls}
+                    >
+                      {!empleadas.some(x => x.id === editVenta.empleada_id) && (
+                        <option value={editVenta.empleada_id}>{editVenta.empleada_nombre}</option>
+                      )}
+                      {empleadas.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                    </select>
+                  ) : (
+                    <p className="px-3 py-2 text-sm font-semibold text-gray-700">{editVenta.empleada_nombre}</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">Comisión %</label>
+                  <input type="number" step="0.5" min="0" max="100" value={editForm.pct} onChange={e => setEditForm(f => ({ ...f, pct: e.target.value }))} required className={`w-20 ${inputCls} text-right`} />
+                </div>
+                {editPrecioNum > 0 && (
+                  <p className="text-sm text-gray-600 pb-2">
+                    → Empleada: <span className="font-bold">{fmtEuros(editParteEmpleada)} €</span>
+                    {' · '}Negocio: <span className="font-bold">{fmtEuros(editParteNegocio)} €</span>
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Nota (opcional)</label>
+                <input type="text" value={editForm.nota} onChange={e => setEditForm(f => ({ ...f, nota: e.target.value }))} placeholder="Detalle breve..." className={`w-full ${inputCls}`} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="bg-mavic-pink text-white font-bold px-5 py-2 rounded-lg text-sm disabled:opacity-50 transition hover:bg-mavic-pink/90"
+                >
+                  {savingEdit ? 'Guardando...' : 'Guardar corrección'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditVenta(null)}
+                  className="bg-white text-gray-500 font-bold px-5 py-2 rounded-lg text-sm border border-gray-200 transition hover:text-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de historial de cambios */}
+      {historialVenta && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={() => setHistorialVenta(null)}>
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-5 max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-gray-700 mb-1 uppercase tracking-wide">Historial de cambios</h3>
+            <p className="text-xs text-gray-400 mb-4">
+              {historialVenta.producto_nombre} · {fmtFecha(historialVenta.fecha)} · {historialVenta.empleada_nombre}
+            </p>
+            <ul className="space-y-3">
+              {(edicionesPorVenta.get(historialVenta.id) ?? []).map(ed => (
+                <li key={ed.id} className="border-b border-gray-100 pb-3 last:border-0">
+                  <p className="text-xs text-gray-500 mb-1">
+                    {fmtFechaHora(ed.editado_at)} — <span className="font-semibold">{ed.editado_por_nombre}</span>
+                  </p>
+                  <ul className="space-y-0.5">
+                    {ed.cambios.map((c, i) => (
+                      <li key={i} className="text-sm text-gray-700">
+                        <span className="font-semibold">{CAMPO_LABELS[c.campo] ?? c.campo}:</span>{' '}
+                        <span className="text-gray-400 line-through">{fmtValorCambio(c.campo, c.antes)}</span>
+                        {' → '}
+                        <span className="font-semibold">{fmtValorCambio(c.campo, c.despues)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setHistorialVenta(null)}
+              className="mt-4 bg-white text-gray-500 font-bold px-5 py-2 rounded-lg text-sm border border-gray-200 transition hover:text-gray-700"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
