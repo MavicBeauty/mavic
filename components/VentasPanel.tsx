@@ -141,6 +141,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         .from('profiles')
         .select('id, name, comision_pct')
         .eq('role', 'portal')
+        .eq('portal_registro', true)
         .order('name'),
     ]);
     // numeric columns come back from PostgREST as strings — coerce before summing.

@@ -54,6 +54,7 @@ export default function RegistroConfigPage() {
         .from('profiles')
         .select('id, name, comision_pct')
         .eq('role', 'portal')
+        .eq('portal_registro', true)
         .order('name'),
     ]);
     // numeric columns come back from PostgREST as strings — coerce before using.
@@ -150,8 +151,14 @@ export default function RegistroConfigPage() {
           <p className="text-xs text-gray-500 mb-4">
             % del precio que se queda la empleada en cada servicio vendido. Vacío = sin comisión por defecto.
             En cada venta se podrá ajustar manualmente si hay otro acuerdo puntual.
+            Solo aparecen las empleadas con acceso al Registro (se gestiona en Perfiles de Empleadas).
           </p>
           <div className="space-y-2">
+            {empleadas.length === 0 && (
+              <p className="text-sm text-gray-400">
+                Ninguna empleada tiene acceso al Registro todavía — actívalo en Perfiles de Empleadas.
+              </p>
+            )}
             {empleadas.map(e => (
               <div key={e.id} className="flex items-center gap-3">
                 <span className="w-40 text-sm font-semibold text-gray-700">{e.name}</span>

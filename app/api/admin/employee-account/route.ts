@@ -23,10 +23,13 @@ export async function GET(req: NextRequest) {
 
   const { data: profiles } = await admin
     .from('profiles')
-    .select('id, email, timesheet_permission, employee_labor_info_id')
+    .select('id, email, timesheet_permission, employee_labor_info_id, portal_registro, portal_nominas, portal_horario')
     .eq('role', 'portal');
 
-  type PortalProfile = { id: string; email: string | null; timesheet_permission: string; employee_labor_info_id: string };
+  type PortalProfile = {
+    id: string; email: string | null; timesheet_permission: string; employee_labor_info_id: string;
+    portal_registro: boolean; portal_nominas: boolean; portal_horario: boolean;
+  };
 
   const accounts = await Promise.all(
     ((profiles || []) as PortalProfile[]).map(async (p) => {
@@ -77,6 +80,10 @@ export async function POST(req: NextRequest) {
     role: 'portal',
     employee_labor_info_id: employeeId,
     timesheet_permission: 'read',
+    // New accounts see nothing until an admin grants sections in /admin/empleados/perfiles.
+    portal_registro: false,
+    portal_nominas: false,
+    portal_horario: false,
   });
 
   if (profileErr) return NextResponse.json({ error: profileErr.message }, { status: 500 });
@@ -91,7 +98,7 @@ export async function PATCH(req: NextRequest) {
   const caller = await verifyAdmin(req);
   if (!caller) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  const { userId, email, password, permission } = await req.json();
+  const { userId, email, password, permission, portal } = await req.json();
 
   if (email || password) {
     const updates: { email?: string; password?: string } = {};
@@ -110,6 +117,17 @@ export async function PATCH(req: NextRequest) {
       .update({ timesheet_permission: permission })
       .eq('id', userId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (portal && typeof portal === 'object') {
+    const updates: Record<string, boolean> = {};
+    if (typeof portal.registro === 'boolean') updates.portal_registro = portal.registro;
+    if (typeof portal.nominas === 'boolean') updates.portal_nominas = portal.nominas;
+    if (typeof portal.horario === 'boolean') updates.portal_horario = portal.horario;
+    if (Object.keys(updates).length > 0) {
+      const { error } = await admin.from('profiles').update(updates).eq('id', userId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ ok: true });

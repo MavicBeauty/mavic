@@ -83,10 +83,12 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
       if (!session) { router.replace(loginHref); return; }
       const { data: prof } = await supabase
         .from('profiles')
-        .select('name')
+        .select('name, portal_registro')
         .eq('id', session.user.id)
         .single();
       if (!prof) { router.replace(loginHref); return; }
+      // Empleadas sin acceso al Registro vuelven al dashboard (RLS bloquea los datos igualmente).
+      if (!isAdmin && !(prof as { portal_registro: boolean }).portal_registro) { router.replace(homeHref); return; }
       setProfile({ id: session.user.id, name: (prof as { name: string }).name });
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps

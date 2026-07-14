@@ -32,11 +32,13 @@ export default function EmpleadaNominasPage() {
       if (!session) { router.push('/empleada'); return; }
       const { data: profile } = await supabase
         .from('profiles')
-        .select('employee_labor_info_id')
+        .select('employee_labor_info_id, portal_nominas')
         .eq('id', session.user.id)
         .single();
-      const laborId = (profile as { employee_labor_info_id: string | null } | null)?.employee_labor_info_id ?? null;
-      setEmployeeLaborId(laborId);
+      const prof = profile as { employee_labor_info_id: string | null; portal_nominas: boolean } | null;
+      // Sin permiso de nóminas: de vuelta al dashboard (RLS bloquea los datos igualmente).
+      if (!prof?.portal_nominas) { router.replace('/empleada/dashboard'); return; }
+      setEmployeeLaborId(prof.employee_labor_info_id ?? null);
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 

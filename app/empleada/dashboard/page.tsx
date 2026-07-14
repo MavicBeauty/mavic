@@ -14,6 +14,7 @@ export default function EmpleadaDashboardPage() {
   const [pwLoading, setPwLoading] = useState(false);
   const [pwMsg, setPwMsg] = useState('');
   const [pendingNominas, setPendingNominas] = useState(0);
+  const [perms, setPerms] = useState<{ registro: boolean; nominas: boolean; horario: boolean } | null>(null);
 
   const supabase = createClient();
 
@@ -22,17 +23,22 @@ export default function EmpleadaDashboardPage() {
       if (!session) return;
       const { data: profile } = await supabase
         .from('profiles')
-        .select('name, employee_labor_info_id')
+        .select('name, employee_labor_info_id, portal_registro, portal_nominas, portal_horario')
         .eq('id', session.user.id)
         .single();
       if (profile) {
-        setName((profile as { name: string; employee_labor_info_id: string | null }).name);
-        const laborId = (profile as { name: string; employee_labor_info_id: string | null }).employee_labor_info_id;
-        if (laborId) {
+        type Prof = {
+          name: string; employee_labor_info_id: string | null;
+          portal_registro: boolean; portal_nominas: boolean; portal_horario: boolean;
+        };
+        const p = profile as Prof;
+        setName(p.name);
+        setPerms({ registro: p.portal_registro, nominas: p.portal_nominas, horario: p.portal_horario });
+        if (p.portal_nominas && p.employee_labor_info_id) {
           const { count } = await supabase
             .from('nominas')
             .select('id', { count: 'exact', head: true })
-            .eq('employee_id', laborId)
+            .eq('employee_id', p.employee_labor_info_id)
             .eq('paid', false);
           setPendingNominas(count ?? 0);
         }
@@ -80,6 +86,15 @@ export default function EmpleadaDashboardPage() {
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-12 space-y-4">
+        {perms && !perms.horario && !perms.nominas && !perms.registro && (
+          <div className="bg-white rounded-2xl shadow p-8 text-center">
+            <p className="text-gray-500 text-sm">
+              Tu cuenta todavía no tiene secciones activadas. Habla con María o José.
+            </p>
+          </div>
+        )}
+
+        {perms?.horario && (
         <Link
           href="/empleada/horario"
           className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
@@ -101,7 +116,9 @@ export default function EmpleadaDashboardPage() {
             </div>
           </div>
         </Link>
+        )}
 
+        {perms?.nominas && (
         <Link
           href="/empleada/nominas"
           className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
@@ -132,7 +149,9 @@ export default function EmpleadaDashboardPage() {
             </div>
           </div>
         </Link>
+        )}
 
+        {perms?.registro && (
         <Link
           href="/empleada/registro"
           className="block bg-white rounded-2xl shadow-lg p-6 hover:shadow-xl transition group"
@@ -147,13 +166,14 @@ export default function EmpleadaDashboardPage() {
               <h2 className="text-lg font-bold text-mavic-black group-hover:text-mavic-pink transition">
                 Registro
               </h2>
-              <p className="text-gray-500 text-sm">Registra movimientos y consulta el saldo</p>
+              <p className="text-gray-500 text-sm">Registra tus servicios y consulta tus comisiones</p>
             </div>
             <div className="ml-auto text-gray-300 group-hover:text-mavic-pink transition text-xl font-light">
               →
             </div>
           </div>
         </Link>
+        )}
 
         {/* Password change */}
         <div className="bg-white rounded-2xl shadow p-6">

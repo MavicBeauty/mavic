@@ -123,10 +123,12 @@ export default function EmpleadaHorarioPage() {
       if (!session) { router.replace('/empleada'); return; }
       const { data: prof } = await supabase
         .from('profiles')
-        .select('name, timesheet_permission, employee_labor_info_id')
+        .select('name, timesheet_permission, employee_labor_info_id, portal_horario')
         .eq('id', session.user.id)
         .single();
       if (!prof) { router.replace('/empleada'); return; }
+      // Sin permiso de horarios: de vuelta al dashboard (RLS bloquea los datos igualmente).
+      if (!(prof as { portal_horario: boolean }).portal_horario) { router.replace('/empleada/dashboard'); return; }
       setProfile(prof as EmployeeProfile);
       const { data: labor } = await supabase
         .from('employee_labor_info')

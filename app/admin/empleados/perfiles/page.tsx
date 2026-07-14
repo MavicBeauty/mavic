@@ -133,7 +133,16 @@ interface PortalAccount {
   timesheet_permission: 'read' | 'edit';
   employee_labor_info_id: string;
   confirmed: boolean;
+  portal_registro: boolean;
+  portal_nominas: boolean;
+  portal_horario: boolean;
 }
+
+const PORTAL_SECTIONS: { key: 'horario' | 'nominas' | 'registro'; col: 'portal_horario' | 'portal_nominas' | 'portal_registro'; label: string }[] = [
+  { key: 'horario', col: 'portal_horario', label: 'Control de horarios' },
+  { key: 'nominas', col: 'portal_nominas', label: 'Nóminas' },
+  { key: 'registro', col: 'portal_registro', label: 'Registro' },
+];
 
 export default function EmpleadosPerfilesPage() {
   const [employees, setEmployees] = useState<EmployeeLaborInfo[]>([]);
@@ -194,7 +203,10 @@ export default function EmpleadosPerfilesPage() {
     } else {
       setPortalAccounts(pa => ({
         ...pa,
-        [employeeId]: { id: json.userId, email, timesheet_permission: 'read', employee_labor_info_id: employeeId, confirmed: false },
+        [employeeId]: {
+          id: json.userId, email, timesheet_permission: 'read', employee_labor_info_id: employeeId, confirmed: false,
+          portal_registro: false, portal_nominas: false, portal_horario: false,
+        },
       }));
       setPortalMsg(m => ({ ...m, [employeeId]: '✓ Invitación enviada' }));
     }
@@ -239,6 +251,30 @@ export default function EmpleadosPerfilesPage() {
     const json = await res.json();
     if (!json.error) {
       setPortalAccounts(pa => ({ ...pa, [employeeId]: { ...acc, timesheet_permission: newPerm } }));
+    }
+    setPortalLoading(l => ({ ...l, [employeeId]: false }));
+  };
+
+  const handleTogglePortalSection = async (employeeId: string, section: typeof PORTAL_SECTIONS[number]) => {
+    const acc = portalAccounts[employeeId];
+    if (!acc) return;
+    const newValue = !acc[section.col];
+    setPortalLoading(l => ({ ...l, [employeeId]: true }));
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch('/api/admin/employee-account', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${session?.access_token}`,
+      },
+      body: JSON.stringify({ userId: acc.id, portal: { [section.key]: newValue } }),
+    });
+    const json = await res.json();
+    if (json.error) {
+      setPortalMsg(m => ({ ...m, [employeeId]: `Error: ${json.error}` }));
+      setTimeout(() => setPortalMsg(m => ({ ...m, [employeeId]: '' })), 4000);
+    } else {
+      setPortalAccounts(pa => ({ ...pa, [employeeId]: { ...acc, [section.col]: newValue } }));
     }
     setPortalLoading(l => ({ ...l, [employeeId]: false }));
   };
@@ -439,15 +475,17 @@ export default function EmpleadosPerfilesPage() {
                             <span className="text-sm text-gray-700 font-medium">
                               {portalAccounts[emp.id].email}
                             </span>
-                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                              portalAccounts[emp.id].timesheet_permission === 'edit'
-                                ? 'bg-green-100 text-green-700'
-                                : 'bg-gray-100 text-gray-600'
-                            }`}>
-                              {portalAccounts[emp.id].timesheet_permission === 'edit'
-                                ? 'Lectura + Edición'
-                                : 'Solo lectura'}
-                            </span>
+                            {portalAccounts[emp.id].portal_horario && (
+                              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                                portalAccounts[emp.id].timesheet_permission === 'edit'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {portalAccounts[emp.id].timesheet_permission === 'edit'
+                                  ? 'Horario: lectura + edición'
+                                  : 'Horario: solo lectura'}
+                              </span>
+                            )}
                             <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
                               portalAccounts[emp.id].confirmed
                                 ? 'bg-blue-100 text-blue-700'
@@ -456,19 +494,45 @@ export default function EmpleadosPerfilesPage() {
                               {portalAccounts[emp.id].confirmed ? '✓ Confirmada' : 'Pendiente de confirmar'}
                             </span>
                           </div>
+                          {/* Permisos del portal — qué secciones ve esta cuenta */}
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Puede ver:</span>
+                            {PORTAL_SECTIONS.map(sec => {
+                              const on = portalAccounts[emp.id][sec.col];
+                              return (
+                                <button
+                                  key={sec.key}
+                                  onClick={() => handleTogglePortalSection(emp.id, sec)}
+                                  disabled={portalLoading[emp.id]}
+                                  title={on ? `Quitar acceso a ${sec.label}` : `Dar acceso a ${sec.label}`}
+                                  className={`px-3 py-1 rounded-full text-xs font-bold border transition disabled:opacity-50 ${
+                                    on
+                                      ? 'bg-green-50 text-green-700 border-green-300'
+                                      : 'bg-gray-100 text-gray-400 border-gray-200 hover:text-gray-600'
+                                  }`}
+                                >
+                                  {sec.label} {on ? '✓' : '✕'}
+                                </button>
+                              );
+                            })}
+                          </div>
                           <div className="flex flex-wrap gap-2 items-center">
-                            <button
-                              onClick={() => handleTogglePermission(emp.id)}
-                              disabled={portalLoading[emp.id]}
-                              className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
-                            >
-                              {portalAccounts[emp.id].timesheet_permission === 'edit'
-                                ? 'Cambiar a solo lectura'
-                                : 'Dar permiso de edición'}
-                            </button>
+                            {portalAccounts[emp.id].portal_horario && (
+                              <>
+                                <button
+                                  onClick={() => handleTogglePermission(emp.id)}
+                                  disabled={portalLoading[emp.id]}
+                                  className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
+                                >
+                                  {portalAccounts[emp.id].timesheet_permission === 'edit'
+                                    ? 'Horario: cambiar a solo lectura'
+                                    : 'Horario: dar permiso de edición'}
+                                </button>
+                                <span className="text-gray-300">|</span>
+                              </>
+                            )}
                             {!portalAccounts[emp.id].confirmed && (
                               <>
-                                <span className="text-gray-300">|</span>
                                 <button
                                   onClick={() => handleResendInvite(emp.id)}
                                   disabled={portalLoading[emp.id]}
@@ -476,9 +540,9 @@ export default function EmpleadosPerfilesPage() {
                                 >
                                   Reenviar confirmación
                                 </button>
+                                <span className="text-gray-300">|</span>
                               </>
                             )}
-                            <span className="text-gray-300">|</span>
                             <button
                               onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'email' ? null : { field: 'email', val: portalAccounts[emp.id].email || '', val2: '' } }))}
                               disabled={portalLoading[emp.id]}
