@@ -54,3 +54,6 @@ Thumbs.db
 
 # Build artifacts
 tsconfig.tsbuildinfo
+
+# Claude Code local settings (machine-specific, may reference private paths)
+.claude/settings.local.json
