@@ -362,25 +362,27 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         </p>
       )}
 
-      {/* Totales del mes + pendientes */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+      {/* Totales del mes + pendientes — la vista portal solo recibe (RLS) y muestra lo suyo */}
+      <div className={`grid grid-cols-1 ${isAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'} gap-3 mb-5`}>
         <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-gray-300">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Ventas del mes</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{isAdmin ? 'Ventas del mes' : 'Tus ventas del mes'}</p>
           <p className="text-2xl font-bold text-mavic-black">{fmtEuros(totalMes)} €</p>
         </div>
-        <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-emerald-400">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Parte negocio</p>
-          <p className="text-2xl font-bold text-emerald-700">{fmtEuros(parteNegocioMes)} €</p>
-        </div>
+        {isAdmin && (
+          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-emerald-400">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Parte negocio</p>
+            <p className="text-2xl font-bold text-emerald-700">{fmtEuros(parteNegocioMes)} €</p>
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Parte empleadas</p>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">{isAdmin ? 'Parte empleadas' : 'Tu comisión del mes'}</p>
           <p className="text-2xl font-bold text-mavic-black">{fmtEuros(parteEmpleadasMes)} €</p>
         </div>
       </div>
 
       {pendientePorEmpleada.size > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-5">
-          <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">Pendiente de pago (histórico)</p>
+          <p className="text-xs font-semibold text-amber-800 uppercase tracking-wide mb-2">{isAdmin ? 'Pendiente de pago (histórico)' : 'Pendiente de cobrar (histórico)'}</p>
           <div className="flex flex-wrap gap-x-6 gap-y-1">
             {Array.from(pendientePorEmpleada.entries()).map(([id, p]) => (
               <p key={id} className="text-sm text-amber-900">
@@ -530,7 +532,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
         <div>
           <label className="block text-xs font-semibold text-gray-600 mb-1">Ordenar por</label>
           <select value={sort} onChange={e => setSort(e.target.value as SortKey)} className={inputCls}>
-            {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {SORT_OPTIONS.filter(o => isAdmin || o.value !== 'empleada').map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
         {isAdmin && seleccion.size > 0 && (
@@ -558,12 +560,12 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                 {isAdmin && <th className="px-3 py-3 w-8"></th>}
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Fecha</th>
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Servicio</th>
-                <th className="px-3 py-3 text-left font-semibold text-gray-700">Empleada</th>
+                {isAdmin && <th className="px-3 py-3 text-left font-semibold text-gray-700">Empleada</th>}
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">Precio</th>
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Pago</th>
                 <th className="px-3 py-3 text-right font-semibold text-gray-700">%</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-700">Su parte</th>
-                <th className="px-3 py-3 text-right font-semibold text-gray-700">Negocio</th>
+                <th className="px-3 py-3 text-right font-semibold text-gray-700">{isAdmin ? 'Su parte' : 'Tu parte'}</th>
+                {isAdmin && <th className="px-3 py-3 text-right font-semibold text-gray-700">Negocio</th>}
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Estado</th>
                 <th className="px-3 py-3 text-left font-semibold text-gray-700">Registró</th>
               </tr>
@@ -571,7 +573,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
             <tbody>
               {ventasOrdenadas.length === 0 ? (
                 <tr>
-                  <td colSpan={isAdmin ? 11 : 10} className="px-4 py-8 text-center text-gray-400">
+                  <td colSpan={isAdmin ? 11 : 8} className="px-4 py-8 text-center text-gray-400">
                     No hay servicios registrados este mes.
                   </td>
                 </tr>
@@ -596,7 +598,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                       {v.producto_nombre}
                       {v.nota && <span className="block text-xs text-gray-400">{v.nota}</span>}
                     </td>
-                    <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>
+                    {isAdmin && <td className="px-3 py-2 text-gray-700">{v.empleada_nombre}</td>}
                     <td className="px-3 py-2 text-right text-gray-700">{fmtEuros(v.precio)} €</td>
                     <td className="px-3 py-2 whitespace-nowrap">
                       <span className={`text-xs font-semibold ${v.metodo_pago === 'datafono' ? 'text-blue-700' : 'text-green-700'}`}>
@@ -608,7 +610,7 @@ export default function VentasPanel({ profile, isAdmin }: VentasPanelProps) {
                     </td>
                     <td className="px-3 py-2 text-right text-gray-500">{v.comision_pct}%</td>
                     <td className="px-3 py-2 text-right font-semibold text-mavic-black">{fmtEuros(v.parte_empleada)} €</td>
-                    <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)} €</td>
+                    {isAdmin && <td className="px-3 py-2 text-right font-semibold text-emerald-700">{fmtEuros(v.parte_negocio)} €</td>}
                     <td className="px-3 py-2 whitespace-nowrap">
                       {est.texto === 'Pendiente' && (
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300">Pendiente</span>

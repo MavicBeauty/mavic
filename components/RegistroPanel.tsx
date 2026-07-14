@@ -58,7 +58,8 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<'movimientos' | 'servicios' | 'estadisticas'>('movimientos');
+  // El cajón (movimientos) es solo para admin — las empleadas entran directo a servicios.
+  const [tab, setTab] = useState<'movimientos' | 'servicios' | 'estadisticas'>(isAdmin ? 'movimientos' : 'servicios');
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
 
   const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -91,6 +92,8 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadMovimientos = useCallback(async () => {
+    // Las empleadas ya no ven el cajón (RLS lo bloquea igualmente) — no consultar.
+    if (!isAdmin) { setLoading(false); return; }
     const { data } = await supabase
       .from('registro_movimientos')
       .select('id, fecha, direccion, importe, nota, quien_nombre, created_at')
@@ -219,16 +222,18 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
       <main className={`${tab === 'movimientos' ? 'max-w-3xl' : 'max-w-5xl'} mx-auto px-4 py-6`}>
         {/* Pestañas */}
         <div className="flex gap-2 mb-5">
-          <button
-            onClick={() => setTab('movimientos')}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
-              tab === 'movimientos'
-                ? 'bg-mavic-pink text-white shadow'
-                : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
-            }`}
-          >
-            Movimientos
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => setTab('movimientos')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
+                tab === 'movimientos'
+                  ? 'bg-mavic-pink text-white shadow'
+                  : 'bg-white text-gray-500 hover:text-gray-700 shadow-sm'
+              }`}
+            >
+              Movimientos
+            </button>
+          )}
           <button
             onClick={() => setTab('servicios')}
             className={`px-4 py-2 rounded-lg text-sm font-bold transition ${
@@ -252,7 +257,7 @@ export default function RegistroPanel({ homeHref, loginHref, configHref, isAdmin
         </div>
 
         {tab === 'estadisticas' ? (
-          <RegistroStats />
+          <RegistroStats isAdmin={isAdmin} />
         ) : tab === 'servicios' && profile ? (
           <VentasPanel profile={profile} isAdmin={isAdmin} />
         ) : (

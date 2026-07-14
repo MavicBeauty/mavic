@@ -46,7 +46,7 @@ function addTo(b: Bucket, v: Venta) {
   b.parteNegocio = round2(b.parteNegocio + v.parte_negocio);
 }
 
-export default function RegistroStats() {
+export default function RegistroStats({ isAdmin = false }: { isAdmin?: boolean }) {
   const supabase = createClient();
 
   const [loading, setLoading] = useState(true);
@@ -140,6 +140,132 @@ export default function RegistroStats() {
       </>
     )
   );
+
+  // ── Vista portal: solo sus propias estadísticas ──────────────────
+  // RLS ya limita `ventas` a las suyas — aquí solo cambia qué se muestra
+  // (sin matriz del negocio ni tabla por empleada) y el tono (segunda persona).
+  if (!isAdmin) {
+    const mes = Array.from(porEmpleadaMes.values())[0];
+    const selectCls = 'px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink';
+    return (
+      <div>
+        {/* Pendiente de cobrar (histórico) */}
+        <div className="bg-white rounded-lg shadow-lg p-5 mb-5 border-l-4 border-l-mavic-gold">
+          <h2 className="text-sm font-bold text-gray-700 mb-3 uppercase tracking-wide">Pendiente de cobrar (todo el histórico)</h2>
+          {pendPorEmpleada.size === 0 ? (
+            <p className="text-sm text-gray-400">No tienes nada pendiente de cobrar. 🎉</p>
+          ) : (
+            <div className="space-y-4">
+              {Array.from(pendPorEmpleada.entries()).map(([id, p]) => (
+                <div key={id}>
+                  <p className="text-sm font-bold text-mavic-black mb-1">
+                    Tienes {fmtEuros(p.total.parteEmpleada)} € pendientes de cobrar ({plural(p.total.count, 'servicio', 'servicios')})
+                  </p>
+                  <ul className="space-y-1">
+                    {p.datafono.count > 0 && (
+                      <li className="text-sm text-blue-800 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2">
+                        💳 En <span className="font-semibold">datáfono</span> cobraste {fmtEuros(p.datafono.total)} €
+                        ({plural(p.datafono.count, 'servicio', 'servicios')}) — de eso,{' '}
+                        <span className="font-bold">{fmtEuros(p.datafono.parteEmpleada)} € pendientes de cobrar</span>.
+                      </li>
+                    )}
+                    {p.efectivo.count > 0 && (
+                      <li className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                        💶 En <span className="font-semibold">efectivo</span> cobraste {fmtEuros(p.efectivo.total)} €
+                        ({plural(p.efectivo.count, 'servicio', 'servicios')}) —{' '}
+                        <span className="font-bold">{fmtEuros(p.efectivo.parteEmpleada)} € pendientes de cobrar</span>.
+                      </li>
+                    )}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Filtro de mes */}
+        <div className="flex flex-wrap items-end gap-4 mb-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Mes</label>
+            <select value={month} onChange={e => setMonth(parseInt(e.target.value))} className={selectCls}>
+              {MONTHS.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Año</label>
+            <select value={year} onChange={e => setYear(parseInt(e.target.value))} className={selectCls}>
+              {years.map(y => <option key={y} value={y}>{y}</option>)}
+            </select>
+          </div>
+        </div>
+
+        {/* Tu resumen del mes */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-gray-300">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Servicios del mes</p>
+            <p className="text-2xl font-bold text-mavic-black">{totalMes.count}</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-emerald-400">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tus ventas del mes</p>
+            <p className="text-2xl font-bold text-mavic-black">{fmtEuros(totalMes.total)} €</p>
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-4 border-l-4 border-l-mavic-gold">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Tu comisión del mes</p>
+            <p className="text-2xl font-bold text-mavic-black">{fmtEuros(totalMes.parteEmpleada)} €</p>
+          </div>
+        </div>
+
+        {/* Detalle del mes */}
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="px-5 pt-4">
+            <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wide">
+              {MONTHS[month - 1]} {year} — Detalle
+            </h2>
+          </div>
+          <div className="overflow-x-auto p-2">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-200">
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700"></th>
+                  <th className="px-3 py-3 text-right font-semibold text-gray-700">Servicios</th>
+                  <th className="px-3 py-3 text-right font-semibold text-gray-700">Cobrado</th>
+                  <th className="px-3 py-3 text-right font-semibold text-gray-700">Tu parte</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-gray-100">
+                  <td className="px-4 py-2 font-semibold text-green-700 whitespace-nowrap">💶 Efectivo</td>
+                  <td className="px-3 py-2 text-right text-gray-700">{filaEfectivo.count || '—'}</td>
+                  <td className="px-3 py-2 text-right text-gray-700">{filaEfectivo.count ? `${fmtEuros(filaEfectivo.total)} €` : '—'}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-mavic-black">{filaEfectivo.count ? `${fmtEuros(filaEfectivo.parteEmpleada)} €` : '—'}</td>
+                </tr>
+                <tr className="border-b border-gray-100">
+                  <td className="px-4 py-2 font-semibold text-blue-700 whitespace-nowrap">💳 Datáfono</td>
+                  <td className="px-3 py-2 text-right text-gray-700">{filaDatafono.count || '—'}</td>
+                  <td className="px-3 py-2 text-right text-gray-700">{filaDatafono.count ? `${fmtEuros(filaDatafono.total)} €` : '—'}</td>
+                  <td className="px-3 py-2 text-right font-semibold text-mavic-black">{filaDatafono.count ? `${fmtEuros(filaDatafono.parteEmpleada)} €` : '—'}</td>
+                </tr>
+                <tr className="bg-mavic-pink/10 font-bold">
+                  <td className="px-4 py-3 text-mavic-black">Total</td>
+                  <td className="px-3 py-3 text-right text-mavic-black">{totalMes.count || '—'}</td>
+                  <td className="px-3 py-3 text-right text-mavic-black">{totalMes.count ? `${fmtEuros(totalMes.total)} €` : '—'}</td>
+                  <td className="px-3 py-3 text-right text-mavic-black">{totalMes.count ? `${fmtEuros(totalMes.parteEmpleada)} €` : '—'}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div className="px-5 pb-4 flex flex-wrap gap-x-6 gap-y-1">
+            <p className="text-sm text-green-700">
+              <span className="font-semibold">Ya cobrado este mes:</span> {fmtEuros(mes?.pagado ?? 0)} €
+            </p>
+            <p className="text-sm text-amber-700">
+              <span className="font-semibold">Pendiente este mes:</span> {fmtEuros(mes?.pendiente ?? 0)} €
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
