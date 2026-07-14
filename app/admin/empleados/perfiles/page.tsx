@@ -42,6 +42,21 @@ const FIELDS: { key: keyof typeof emptyForm; label: string; hint?: string }[] = 
   { key: 'fecha_antiguedad', label: 'Fecha de antigüedad', hint: 'Formato DD/MM/AAAA · Ej: 14/02/2025' },
 ];
 
+// Identity colors — literal class strings so Tailwind compiles them. Assigned by
+// position in created_at order, so each empleada keeps her color over time.
+const PALETTE = [
+  { border: 'border-l-rose-400', avatar: 'bg-rose-100 text-rose-700' },
+  { border: 'border-l-amber-400', avatar: 'bg-amber-100 text-amber-700' },
+  { border: 'border-l-sky-400', avatar: 'bg-sky-100 text-sky-700' },
+  { border: 'border-l-emerald-400', avatar: 'bg-emerald-100 text-emerald-700' },
+  { border: 'border-l-violet-400', avatar: 'bg-violet-100 text-violet-700' },
+  { border: 'border-l-orange-400', avatar: 'bg-orange-100 text-orange-700' },
+  { border: 'border-l-teal-400', avatar: 'bg-teal-100 text-teal-700' },
+  { border: 'border-l-fuchsia-400', avatar: 'bg-fuchsia-100 text-fuchsia-700' },
+  { border: 'border-l-indigo-400', avatar: 'bg-indigo-100 text-indigo-700' },
+  { border: 'border-l-lime-500', avatar: 'bg-lime-100 text-lime-700' },
+];
+
 function EmployeeForm({
   initial,
   onSave,
@@ -148,7 +163,7 @@ export default function EmpleadosPerfilesPage() {
   const [employees, setEmployees] = useState<EmployeeLaborInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [manage, setManage] = useState<{ id: string; tab: 'datos' | 'cuenta' } | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -350,10 +365,15 @@ export default function EmpleadosPerfilesPage() {
     if (err) { setError(err.message); }
     else {
       setEmployees(e => e.map(emp => emp.id === id ? { ...emp, ...payload } : emp));
-      setEditingId(null);
+      setManage(null);
     }
     setSaving(false);
   };
+
+  const closeManage = () => { setManage(null); setError(''); };
+
+  const managedEmp = manage ? employees.find(e => e.id === manage.id) : undefined;
+  const managedIdx = manage ? employees.findIndex(e => e.id === manage.id) : -1;
 
   return (
     <div className="min-h-screen bg-mavic-beige">
@@ -371,10 +391,117 @@ export default function EmpleadosPerfilesPage() {
 
       <main className="max-w-5xl mx-auto px-4 py-12 space-y-6">
 
-        {/* New employee */}
-        {showNew ? (
-          <div className="bg-white rounded-lg shadow-lg p-6">
-            <h2 className="text-lg font-bold text-mavic-black mb-5">Nueva empleada</h2>
+        <div className="flex justify-end">
+          <button
+            onClick={() => { setShowNew(true); setError(''); }}
+            className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold px-6 py-2 rounded-lg transition"
+          >
+            + Nueva empleada
+          </button>
+        </div>
+
+        {/* Employee cards */}
+        {loading ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">Cargando...</div>
+        ) : employees.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
+            No hay empleadas registradas aún.
+          </div>
+        ) : (
+          <div className="grid md:grid-cols-2 gap-4">
+            {employees.map((emp, i) => {
+              const color = PALETTE[i % PALETTE.length];
+              const acc = portalAccounts[emp.id];
+              return (
+                <div
+                  key={emp.id}
+                  className={`bg-white rounded-lg shadow-lg border-l-4 ${color.border} p-4 ${!emp.is_active ? 'opacity-60' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center font-bold text-lg shrink-0 ${color.avatar}`}>
+                      {emp.display_name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-lg font-bold text-mavic-black truncate">{emp.display_name}</h2>
+                        {!emp.is_active && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full shrink-0">Inactiva</span>
+                        )}
+                      </div>
+                      {acc ? (
+                        <p className="text-sm text-gray-500 truncate">{acc.email}</p>
+                      ) : (
+                        <p className="text-sm text-gray-400 italic">Sin cuenta portal</p>
+                      )}
+                    </div>
+                    <div className="flex flex-col items-end gap-1.5 shrink-0">
+                      {acc && (
+                        <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                          acc.confirmed ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                          {acc.confirmed ? '✓ Confirmada' : 'Pendiente'}
+                        </span>
+                      )}
+                      <button
+                        onClick={() => { setManage({ id: emp.id, tab: 'datos' }); setError(''); }}
+                        className="text-sm font-semibold text-mavic-pink hover:text-mavic-pink/70 transition"
+                      >
+                        Gestionar
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Invite flow — only while the empleada has no portal account */}
+                  {!acc && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2 items-end flex-wrap">
+                      <div className="flex-1 min-w-40">
+                        <label className="block text-xs text-gray-500 mb-1">Email de la empleada</label>
+                        <input
+                          type="email"
+                          value={inviteEmails[emp.id] || ''}
+                          onChange={e => setInviteEmails(ie => ({ ...ie, [emp.id]: e.target.value }))}
+                          placeholder="correo@ejemplo.com"
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
+                        />
+                      </div>
+                      <button
+                        onClick={() => handleSendInvite(emp.id)}
+                        disabled={!inviteEmails[emp.id] || portalLoading[emp.id]}
+                        className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-mavic-pink/90 transition whitespace-nowrap"
+                      >
+                        {portalLoading[emp.id] ? 'Enviando...' : 'Enviar invitación'}
+                      </button>
+                      {portalMsg[emp.id] && (
+                        <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                          {portalMsg[emp.id]}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </main>
+
+      {/* New employee modal */}
+      {showNew && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
+          onClick={() => { setShowNew(false); setError(''); }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8 p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-5">
+              <h2 className="text-xl font-bold text-mavic-black">Nueva empleada</h2>
+              <button
+                onClick={() => { setShowNew(false); setError(''); }}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
             <EmployeeForm
               initial={emptyForm}
               onSave={handleCreate}
@@ -383,272 +510,229 @@ export default function EmpleadosPerfilesPage() {
               error={error}
             />
           </div>
-        ) : (
-          <div className="flex justify-end">
-            <button
-              onClick={() => setShowNew(true)}
-              className="bg-mavic-pink hover:bg-mavic-pink/90 text-white font-bold px-6 py-2 rounded-lg transition"
-            >
-              + Nueva empleada
-            </button>
-          </div>
-        )}
+        </div>
+      )}
 
-        {/* Employee list */}
-        {loading ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">Cargando...</div>
-        ) : employees.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-lg p-8 text-center text-gray-500">
-            No hay empleadas registradas aún.
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {employees.map(emp => (
-              <div key={emp.id} className={`bg-white rounded-lg shadow-lg p-6 ${!emp.is_active ? 'opacity-60' : ''}`}>
-                {editingId === emp.id ? (
-                  <>
-                    <h2 className="text-lg font-bold text-mavic-black mb-5">Editando — {emp.display_name}</h2>
-                    <EmployeeForm
-                      initial={{
-                        display_name: emp.display_name,
-                        nombre_completo: emp.nombre_completo,
-                        nif: emp.nif,
-                        num_afiliacion_ss: emp.num_afiliacion_ss || '',
-                        puesto_trabajo: emp.puesto_trabajo || '',
-                        categoria: emp.categoria || '',
-                        grupo_cotizacion: emp.grupo_cotizacion || '',
-                        fecha_antiguedad: emp.fecha_antiguedad || '',
-                        weekly_hours: emp.weekly_hours != null ? String(emp.weekly_hours) : '',
-                        is_active: emp.is_active,
-                      }}
-                      onSave={form => handleUpdate(emp.id, form)}
-                      onCancel={() => { setEditingId(null); setError(''); }}
-                      saving={saving}
-                      error={error}
-                    />
-                  </>
-                ) : (
+      {/* Manage modal — Datos laborales | Cuenta y permisos */}
+      {manage && managedEmp && (
+        <div
+          className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center p-4 overflow-y-auto"
+          onClick={closeManage}
+        >
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8 p-6" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold shrink-0 ${PALETTE[managedIdx % PALETTE.length].avatar}`}>
+                  {managedEmp.display_name.charAt(0).toUpperCase()}
+                </div>
+                <h2 className="text-xl font-bold text-mavic-black">{managedEmp.display_name}</h2>
+              </div>
+              <button
+                onClick={closeManage}
+                className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                aria-label="Cerrar"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="flex gap-1 border-b border-gray-200 mb-5">
+              {([
+                { tab: 'datos', label: 'Datos laborales' },
+                { tab: 'cuenta', label: 'Cuenta y permisos' },
+              ] as const).map(({ tab, label }) => (
+                <button
+                  key={tab}
+                  onClick={() => setManage(m => m && { ...m, tab })}
+                  className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition -mb-px border-b-2 ${
+                    manage.tab === tab
+                      ? 'text-mavic-pink border-mavic-pink'
+                      : 'text-gray-500 border-transparent hover:text-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {manage.tab === 'datos' ? (
+              <EmployeeForm
+                initial={{
+                  display_name: managedEmp.display_name,
+                  nombre_completo: managedEmp.nombre_completo,
+                  nif: managedEmp.nif,
+                  num_afiliacion_ss: managedEmp.num_afiliacion_ss || '',
+                  puesto_trabajo: managedEmp.puesto_trabajo || '',
+                  categoria: managedEmp.categoria || '',
+                  grupo_cotizacion: managedEmp.grupo_cotizacion || '',
+                  fecha_antiguedad: managedEmp.fecha_antiguedad || '',
+                  weekly_hours: managedEmp.weekly_hours != null ? String(managedEmp.weekly_hours) : '',
+                  is_active: managedEmp.is_active,
+                }}
+                onSave={form => handleUpdate(managedEmp.id, form)}
+                onCancel={closeManage}
+                saving={saving}
+                error={error}
+              />
+            ) : portalAccounts[managedEmp.id] ? (
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className="text-sm text-gray-700 font-medium">
+                    {portalAccounts[managedEmp.id].email}
+                  </span>
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                    portalAccounts[managedEmp.id].confirmed
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {portalAccounts[managedEmp.id].confirmed ? '✓ Confirmada' : 'Pendiente de confirmar'}
+                  </span>
+                  {!portalAccounts[managedEmp.id].confirmed && (
+                    <button
+                      onClick={() => handleResendInvite(managedEmp.id)}
+                      disabled={portalLoading[managedEmp.id]}
+                      className="text-xs text-gray-500 hover:text-mavic-pink font-semibold disabled:opacity-50 transition"
+                    >
+                      Reenviar confirmación
+                    </button>
+                  )}
+                </div>
+
+                {/* Permisos del portal — qué secciones ve esta cuenta */}
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Puede ver:</p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {PORTAL_SECTIONS.map(sec => {
+                      const on = portalAccounts[managedEmp.id][sec.col];
+                      return (
+                        <button
+                          key={sec.key}
+                          onClick={() => handleTogglePortalSection(managedEmp.id, sec)}
+                          disabled={portalLoading[managedEmp.id]}
+                          title={on ? `Quitar acceso a ${sec.label}` : `Dar acceso a ${sec.label}`}
+                          className={`px-3 py-1 rounded-full text-xs font-bold border transition disabled:opacity-50 ${
+                            on
+                              ? 'bg-green-50 text-green-700 border-green-300'
+                              : 'bg-gray-100 text-gray-400 border-gray-200 hover:text-gray-600'
+                          }`}
+                        >
+                          {sec.label} {on ? '✓' : '✕'}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {portalAccounts[managedEmp.id].portal_horario && (
                   <div>
-                    <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <h2 className="text-xl font-bold text-mavic-black">{emp.display_name}</h2>
-                        {!emp.is_active && (
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Inactiva</span>
-                        )}
-                      </div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Horario:</p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
+                        portalAccounts[managedEmp.id].timesheet_permission === 'edit'
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}>
+                        {portalAccounts[managedEmp.id].timesheet_permission === 'edit'
+                          ? 'Lectura + edición'
+                          : 'Solo lectura'}
+                      </span>
                       <button
-                        onClick={() => setEditingId(emp.id)}
-                        className="text-sm font-semibold text-mavic-pink hover:text-mavic-pink/70 transition"
+                        onClick={() => handleTogglePermission(managedEmp.id)}
+                        disabled={portalLoading[managedEmp.id]}
+                        className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
                       >
-                        Editar
+                        {portalAccounts[managedEmp.id].timesheet_permission === 'edit'
+                          ? 'Cambiar a solo lectura'
+                          : 'Dar permiso de edición'}
                       </button>
-                    </div>
-                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-3">
-                      <div className="md:col-span-2">
-                        <p className="text-xs text-gray-500 uppercase tracking-wide">Nombre para el PDF</p>
-                        <p className="font-semibold text-mavic-black">{emp.nombre_completo}</p>
-                      </div>
-                      {[
-                        { label: 'NIF / NIE', value: emp.nif },
-                        { label: 'Núm. afiliación SS', value: emp.num_afiliacion_ss },
-                        { label: 'Puesto de trabajo', value: emp.puesto_trabajo },
-                        { label: 'Categoría', value: emp.categoria },
-                        { label: 'Grupo de cotización', value: emp.grupo_cotizacion },
-                        { label: 'Fecha de antigüedad', value: emp.fecha_antiguedad },
-                        { label: 'Horas semanales', value: emp.weekly_hours != null ? `${emp.weekly_hours} h/semana` : '' },
-                      ].map(({ label, value }) => value ? (
-                        <div key={label}>
-                          <p className="text-xs text-gray-500 uppercase tracking-wide">{label}</p>
-                          <p className="font-medium text-mavic-black">{value}</p>
-                        </div>
-                      ) : null)}
-                    </div>
-
-                    {/* Cuenta portal */}
-                    <div className="mt-6 pt-5 border-t border-gray-100">
-                      <h3 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-3">
-                        Cuenta portal
-                      </h3>
-                      {portalAccounts[emp.id] ? (
-                        <div className="space-y-3">
-                          <div className="flex flex-wrap items-center gap-3">
-                            <span className="text-sm text-gray-700 font-medium">
-                              {portalAccounts[emp.id].email}
-                            </span>
-                            {portalAccounts[emp.id].portal_horario && (
-                              <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                                portalAccounts[emp.id].timesheet_permission === 'edit'
-                                  ? 'bg-green-100 text-green-700'
-                                  : 'bg-gray-100 text-gray-600'
-                              }`}>
-                                {portalAccounts[emp.id].timesheet_permission === 'edit'
-                                  ? 'Horario: lectura + edición'
-                                  : 'Horario: solo lectura'}
-                              </span>
-                            )}
-                            <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${
-                              portalAccounts[emp.id].confirmed
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-amber-100 text-amber-700'
-                            }`}>
-                              {portalAccounts[emp.id].confirmed ? '✓ Confirmada' : 'Pendiente de confirmar'}
-                            </span>
-                          </div>
-                          {/* Permisos del portal — qué secciones ve esta cuenta */}
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Puede ver:</span>
-                            {PORTAL_SECTIONS.map(sec => {
-                              const on = portalAccounts[emp.id][sec.col];
-                              return (
-                                <button
-                                  key={sec.key}
-                                  onClick={() => handleTogglePortalSection(emp.id, sec)}
-                                  disabled={portalLoading[emp.id]}
-                                  title={on ? `Quitar acceso a ${sec.label}` : `Dar acceso a ${sec.label}`}
-                                  className={`px-3 py-1 rounded-full text-xs font-bold border transition disabled:opacity-50 ${
-                                    on
-                                      ? 'bg-green-50 text-green-700 border-green-300'
-                                      : 'bg-gray-100 text-gray-400 border-gray-200 hover:text-gray-600'
-                                  }`}
-                                >
-                                  {sec.label} {on ? '✓' : '✕'}
-                                </button>
-                              );
-                            })}
-                          </div>
-                          <div className="flex flex-wrap gap-2 items-center">
-                            {portalAccounts[emp.id].portal_horario && (
-                              <>
-                                <button
-                                  onClick={() => handleTogglePermission(emp.id)}
-                                  disabled={portalLoading[emp.id]}
-                                  className="text-xs text-mavic-pink hover:underline font-semibold disabled:opacity-50 transition"
-                                >
-                                  {portalAccounts[emp.id].timesheet_permission === 'edit'
-                                    ? 'Horario: cambiar a solo lectura'
-                                    : 'Horario: dar permiso de edición'}
-                                </button>
-                                <span className="text-gray-300">|</span>
-                              </>
-                            )}
-                            {!portalAccounts[emp.id].confirmed && (
-                              <>
-                                <button
-                                  onClick={() => handleResendInvite(emp.id)}
-                                  disabled={portalLoading[emp.id]}
-                                  className="text-xs text-gray-500 hover:text-mavic-pink font-semibold disabled:opacity-50 transition"
-                                >
-                                  Reenviar confirmación
-                                </button>
-                                <span className="text-gray-300">|</span>
-                              </>
-                            )}
-                            <button
-                              onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'email' ? null : { field: 'email', val: portalAccounts[emp.id].email || '', val2: '' } }))}
-                              disabled={portalLoading[emp.id]}
-                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
-                            >
-                              Cambiar email
-                            </button>
-                            <span className="text-gray-300">|</span>
-                            <button
-                              onClick={() => setCredEdit(c => ({ ...c, [emp.id]: credEdit[emp.id]?.field === 'password' ? null : { field: 'password', val: '', val2: '' } }))}
-                              disabled={portalLoading[emp.id]}
-                              className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
-                            >
-                              Cambiar contraseña
-                            </button>
-                            {portalMsg[emp.id] && (
-                              <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-                                {portalMsg[emp.id]}
-                              </span>
-                            )}
-                          </div>
-                          {credEdit[emp.id] && (
-                            <div className="flex flex-wrap gap-2 items-end pt-1">
-                              {credEdit[emp.id]!.field === 'email' ? (
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">Nuevo email</label>
-                                  <input
-                                    type="email"
-                                    value={credEdit[emp.id]!.val}
-                                    onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val: e.target.value } }))}
-                                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-64"
-                                  />
-                                </div>
-                              ) : (
-                                <>
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Nueva contraseña</label>
-                                    <input
-                                      type="password"
-                                      value={credEdit[emp.id]!.val}
-                                      onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val: e.target.value } }))}
-                                      placeholder="Mín. 8 caracteres"
-                                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
-                                    />
-                                  </div>
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Confirmar</label>
-                                    <input
-                                      type="password"
-                                      value={credEdit[emp.id]!.val2}
-                                      onChange={e => setCredEdit(c => ({ ...c, [emp.id]: { ...c[emp.id]!, val2: e.target.value } }))}
-                                      className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
-                                    />
-                                  </div>
-                                </>
-                              )}
-                              <button
-                                onClick={() => handleCredChange(emp.id)}
-                                disabled={portalLoading[emp.id] || !credEdit[emp.id]!.val}
-                                className="px-4 py-1.5 bg-mavic-pink text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-mavic-pink/90 transition"
-                              >
-                                {portalLoading[emp.id] ? 'Guardando...' : 'Guardar'}
-                              </button>
-                              <button
-                                onClick={() => setCredEdit(c => ({ ...c, [emp.id]: null }))}
-                                className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 font-semibold transition"
-                              >
-                                Cancelar
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 items-end flex-wrap">
-                          <div className="flex-1 min-w-52">
-                            <label className="block text-xs text-gray-500 mb-1">Email de la empleada</label>
-                            <input
-                              type="email"
-                              value={inviteEmails[emp.id] || ''}
-                              onChange={e => setInviteEmails(ie => ({ ...ie, [emp.id]: e.target.value }))}
-                              placeholder="correo@ejemplo.com"
-                              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink"
-                            />
-                          </div>
-                          <button
-                            onClick={() => handleSendInvite(emp.id)}
-                            disabled={!inviteEmails[emp.id] || portalLoading[emp.id]}
-                            className="bg-mavic-pink text-white font-bold px-4 py-2 rounded-lg text-sm disabled:opacity-50 hover:bg-mavic-pink/90 transition whitespace-nowrap"
-                          >
-                            {portalLoading[emp.id] ? 'Enviando...' : 'Enviar invitación'}
-                          </button>
-                          {portalMsg[emp.id] && (
-                            <span className={`text-xs font-semibold ${portalMsg[emp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
-                              {portalMsg[emp.id]}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
+
+                <div className="pt-3 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Credenciales:</p>
+                  <div className="flex flex-wrap gap-2 items-center">
+                    <button
+                      onClick={() => setCredEdit(c => ({ ...c, [managedEmp.id]: credEdit[managedEmp.id]?.field === 'email' ? null : { field: 'email', val: portalAccounts[managedEmp.id].email || '', val2: '' } }))}
+                      disabled={portalLoading[managedEmp.id]}
+                      className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
+                    >
+                      Cambiar email
+                    </button>
+                    <span className="text-gray-300">|</span>
+                    <button
+                      onClick={() => setCredEdit(c => ({ ...c, [managedEmp.id]: credEdit[managedEmp.id]?.field === 'password' ? null : { field: 'password', val: '', val2: '' } }))}
+                      disabled={portalLoading[managedEmp.id]}
+                      className="text-xs text-gray-500 hover:text-mavic-pink font-semibold transition"
+                    >
+                      Cambiar contraseña
+                    </button>
+                    {portalMsg[managedEmp.id] && (
+                      <span className={`text-xs font-semibold ${portalMsg[managedEmp.id].startsWith('Error') ? 'text-red-600' : 'text-green-600'}`}>
+                        {portalMsg[managedEmp.id]}
+                      </span>
+                    )}
+                  </div>
+                  {credEdit[managedEmp.id] && (
+                    <div className="flex flex-wrap gap-2 items-end pt-3">
+                      {credEdit[managedEmp.id]!.field === 'email' ? (
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Nuevo email</label>
+                          <input
+                            type="email"
+                            value={credEdit[managedEmp.id]!.val}
+                            onChange={e => setCredEdit(c => ({ ...c, [managedEmp.id]: { ...c[managedEmp.id]!, val: e.target.value } }))}
+                            className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-64"
+                          />
+                        </div>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Nueva contraseña</label>
+                            <input
+                              type="password"
+                              value={credEdit[managedEmp.id]!.val}
+                              onChange={e => setCredEdit(c => ({ ...c, [managedEmp.id]: { ...c[managedEmp.id]!, val: e.target.value } }))}
+                              placeholder="Mín. 8 caracteres"
+                              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Confirmar</label>
+                            <input
+                              type="password"
+                              value={credEdit[managedEmp.id]!.val2}
+                              onChange={e => setCredEdit(c => ({ ...c, [managedEmp.id]: { ...c[managedEmp.id]!, val2: e.target.value } }))}
+                              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mavic-pink w-48"
+                            />
+                          </div>
+                        </>
+                      )}
+                      <button
+                        onClick={() => handleCredChange(managedEmp.id)}
+                        disabled={portalLoading[managedEmp.id] || !credEdit[managedEmp.id]!.val}
+                        className="px-4 py-1.5 bg-mavic-pink text-white text-xs font-bold rounded-lg disabled:opacity-50 hover:bg-mavic-pink/90 transition"
+                      >
+                        {portalLoading[managedEmp.id] ? 'Guardando...' : 'Guardar'}
+                      </button>
+                      <button
+                        onClick={() => setCredEdit(c => ({ ...c, [managedEmp.id]: null }))}
+                        className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 font-semibold transition"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
-            ))}
+            ) : (
+              <p className="text-sm text-gray-500">
+                Esta empleada aún no tiene cuenta del portal — envíale la invitación desde su tarjeta.
+              </p>
+            )}
           </div>
-        )}
-      </main>
+        </div>
+      )}
     </div>
   );
 }

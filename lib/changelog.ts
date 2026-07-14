@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-14-perfiles-tarjetas-permisos',
+    date: '2026-07-14',
+    title: 'Fichas de empleadas más claras, con todos los permisos en un solo sitio',
+    description: 'La página de "Perfiles de Empleadas" se ha rediseñado. Ahora cada empleada aparece en una tarjeta pequeña con un color propio, su email y si ya confirmó su cuenta. Al pulsar "Gestionar" se abre una ventana con dos pestañas: "Datos laborales" (la ficha de siempre) y "Cuenta y permisos", donde puedes controlar todo lo de su cuenta del portal: qué secciones ve (Control de horarios, Nóminas y Registro), si puede editar su horario o solo verlo, cambiarle el email o la contraseña, y reenviarle la invitación si aún no la confirmó.',
+    why: 'Antes cada ficha mostraba todos los datos y botones a la vez y era fácil perderse. Ahora lo importante se ve de un vistazo, y todos los permisos de cada empleada se cambian desde un único sitio — tú misma puedes dar o quitar acceso a cualquier sección del portal sin pedir ayuda.',
+    tag: 'mejora',
+  },
+  {
     id: '2026-07-12-gestoria-selector-contactos',
     date: '2026-07-12',
     title: 'Elige a quién de la gestoría enviar el registro de horas',
