@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-07-14-registro-completo',
+    date: '2026-07-14',
+    title: 'Registro renovado: servicios vendidos, pagos a empleadas y estadísticas',
+    description: 'La sección "Registro" se ha rehecho por completo y sustituye a la hoja de Excel que se usaba hasta ahora — a partir de ahora todo se anota aquí. Tiene tres partes: "Servicios vendidos", donde se anota cada servicio con su precio, cómo se cobró (efectivo o datáfono) y la comisión de la empleada; "Estadísticas", con el resumen del mes, cuánto queda pendiente de cobrar y cómo entró el dinero; y "Movimientos" (solo tú), el registro de caja de siempre, ahora con un botón de "Cierre de caja" que te dice cuánto debería haber y te deja anotar lo que cuentas de verdad, guardando la diferencia si la hay. Al pagar a una empleada eliges si el dinero sale de la caja o de otro sitio (Booksy, banco), y puedes pagar a todas las que tengan algo pendiente con un solo botón. Si te equivocas al anotar una venta, puedes corregirla y queda un historial de qué se cambió y cuándo. Las empleadas solo ven sus propios servicios y su comisión pendiente, nunca los de las demás. También se ha renovado el aspecto de toda la sección para que sea más fácil de leer, con un estilo más parecido al de un banco. Para empezar a usarlo: cuenta el dinero que hay ahora mismo en la caja y anota un primer movimiento por ese importe con la nota "saldo inicial" (pestaña Movimientos → botón "Nuevo movimiento"). A partir de ahí, sigue anotando cada entrada y salida como siempre.',
+    why: 'Antes todo el dinero de caja se anotaba a mano en un único listado o en Excel, sin saber qué parte era de la empresa y qué parte de cada empleada, ni si ya se le había pagado. Ahora cada venta lleva su comisión calculada, sabes en todo momento quién tiene pendiente de cobrar, puedes comprobar que lo que hay en el cajón coincide con lo que debería haber, y queda constancia de cualquier corrección.',
+    tag: 'nuevo',
+  },
+  {
     id: '2026-07-14-perfiles-tarjetas-permisos',
     date: '2026-07-14',
     title: 'Fichas de empleadas más claras, con todos los permisos en un solo sitio',
