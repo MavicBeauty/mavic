@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -82,9 +83,14 @@ export default function OfertasPage() {
   return (
     <div className="min-h-screen bg-mavic-beige">
       <header className="bg-gradient-to-r from-mavic-pink to-mavic-gold text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-6">
-          <h1 className="text-3xl font-bold">Ventana Emergente</h1>
-          <p className="text-white/80 mt-1">Configura el anuncio que aparece al entrar al sitio</p>
+        <div className="max-w-7xl mx-auto px-4 py-6 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold">Ventana Emergente</h1>
+            <p className="text-white/80 mt-1">Configura el anuncio que aparece al entrar al sitio</p>
+          </div>
+          <Link href="/admin/dashboard" className="text-white hover:text-gray-100 font-semibold transition">
+            ← Volver
+          </Link>
         </div>
       </header>
 

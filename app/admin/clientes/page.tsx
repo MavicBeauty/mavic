@@ -63,12 +63,17 @@ export default function ClientsPage() {
             <h1 className="text-3xl font-bold">Gestión de Clientes</h1>
             <p className="text-white/80 mt-1">Buscar, ver y editar clientes</p>
           </div>
-          <Link
-            href="/admin/clientes/nuevo"
-            className="bg-white text-mavic-pink font-semibold px-6 py-2 rounded-lg hover:bg-gray-100 transition"
-          >
-            + Nuevo Cliente
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link href="/admin/dashboard" className="text-white hover:text-gray-100 font-semibold transition">
+              ← Volver
+            </Link>
+            <Link
+              href="/admin/clientes/nuevo"
+              className="bg-white text-mavic-pink font-semibold px-6 py-2 rounded-lg hover:bg-gray-100 transition"
+            >
+              + Nuevo Cliente
+            </Link>
+          </div>
         </div>
       </header>
 

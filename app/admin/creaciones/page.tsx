@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import Link from 'next/link';
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -72,6 +73,9 @@ export default function AdminCreacionesPage() {
             <h1 className="text-3xl font-bold">Nuestras Creaciones</h1>
             <p className="text-white/80 mt-1">Gestionar galería de imágenes</p>
           </div>
+          <Link href="/admin/dashboard" className="text-white hover:text-gray-100 font-semibold transition">
+            ← Volver
+          </Link>
         </div>
       </header>
 
