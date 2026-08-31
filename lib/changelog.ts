@@ -11,6 +11,14 @@ export interface ChangelogEntry {
 // plain language, no jargon, always say why it changed.
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: '2026-08-31-vacaciones-horario',
+    date: '2026-08-31',
+    title: 'Nueva opción "Vacaciones" en Control de horarios',
+    description: 'En "Control de horarios", al marcar la ausencia de un día, ahora hay una opción "Vacaciones" además de "Mañana", "Tarde" y "Todo el día". Al elegirla, bloquea el día completo igual que "Todo el día" (no se pueden anotar horas de entrada/salida), y en el PDF generado aparece la palabra "VACACIONES" en esa fila.',
+    why: 'Para poder distinguir a simple vista, tanto en el portal como en el PDF que se envía a la gestoría, los días que una empleada está de vacaciones de otros días de ausencia sin especificar el motivo.',
+    tag: 'nuevo',
+  },
+  {
     id: '2026-07-14-registro-completo',
     date: '2026-07-14',
     title: 'Registro renovado: servicios vendidos, pagos a empleadas y estadísticas',

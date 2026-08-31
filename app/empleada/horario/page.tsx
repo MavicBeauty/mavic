@@ -10,7 +10,7 @@ interface DayEntry {
   day: number;
   entry1: string; exit1: string;
   entry2: string; exit2: string;
-  absence: 'none' | 'morning' | 'afternoon' | 'all';
+  absence: 'none' | 'morning' | 'afternoon' | 'all' | 'vacation';
   notes: string;
   ent_comp?: string;
   sal_comp?: string;
@@ -44,7 +44,7 @@ interface SigState {
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const DOW_LETTER = ['D','L','M','X','J','V','S'];
-const ABSENCE_LABELS: Record<string, string> = { morning: 'Mañana', afternoon: 'Tarde', all: 'Todo el día' };
+const ABSENCE_LABELS: Record<string, string> = { morning: 'Mañana', afternoon: 'Tarde', all: 'Todo el día', vacation: 'Vacaciones' };
 
 const EMPLOYEE_COLORS = [
   { borderL: 'border-l-rose-400',   dot: 'bg-rose-400'   },
@@ -62,7 +62,7 @@ function emptyDays(): DayEntry[] {
 }
 
 function calcDailyHours(d: DayEntry): number {
-  if (d.absence === 'all' || !d.entry1 || !d.exit1) return 0;
+  if (d.absence === 'all' || d.absence === 'vacation' || !d.entry1 || !d.exit1) return 0;
   const [h1, m1] = d.entry1.split(':').map(Number);
   const [h2, m2] = d.exit1.split(':').map(Number);
   let h = h2 - h1 + (m2 - m1) / 60;
@@ -579,7 +579,7 @@ export default function EmpleadaHorarioPage() {
                   const dow = new Date(year, month - 1, day.day).getDay();
                   const hours = calcDailyHours(day);
                   const hasAbsence = day.absence !== 'none';
-                  const isFullDayAbsence = day.absence === 'all';
+                  const isFullDayAbsence = day.absence === 'all' || day.absence === 'vacation';
 
                   return (
                     <tr key={day.day} className="border-b border-gray-100 hover:bg-gray-50">
@@ -624,6 +624,7 @@ export default function EmpleadaHorarioPage() {
                             <option value="morning">Mañana</option>
                             <option value="afternoon">Tarde</option>
                             <option value="all">Todo el día</option>
+                            <option value="vacation">Vacaciones</option>
                           </select>
                         ) : (
                           <span className="text-xs text-gray-500 block text-center">

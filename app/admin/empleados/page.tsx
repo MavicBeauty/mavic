@@ -13,7 +13,7 @@ interface DayEntry {
   exit1: string;
   entry2: string;
   exit2: string;
-  absence: 'none' | 'morning' | 'afternoon' | 'all';
+  absence: 'none' | 'morning' | 'afternoon' | 'all' | 'vacation';
   notes: string;
   ent_comp?: string;
   sal_comp?: string;
@@ -133,7 +133,7 @@ export default function EmpleadosPage() {
   };
 
   const calcDailyHours = (d: DayEntry): number => {
-    if (d.absence === 'all' || !d.entry1 || !d.exit1) return 0;
+    if (d.absence === 'all' || d.absence === 'vacation' || !d.entry1 || !d.exit1) return 0;
     const [h1, m1] = d.entry1.split(':').map(Number);
     const [h2, m2] = d.exit1.split(':').map(Number);
     let h = h2 - h1 + (m2 - m1) / 60;
@@ -735,7 +735,7 @@ export default function EmpleadosPage() {
                         <td key={field} className="px-2 py-2">
                           <input type="time" value={day[field]}
                             onChange={(e) => handleDayChange(day.day, field, e.target.value)}
-                            disabled={day.absence === 'all' || isLocked}
+                            disabled={day.absence === 'all' || day.absence === 'vacation' || isLocked}
                             className="w-full px-2 py-1 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-mavic-pink disabled:bg-gray-100 disabled:text-gray-400" />
                         </td>
                       ))}
@@ -750,6 +750,7 @@ export default function EmpleadosPage() {
                           <option value="morning">Mañana</option>
                           <option value="afternoon">Tarde</option>
                           <option value="all">Todo el día</option>
+                          <option value="vacation">Vacaciones</option>
                         </select>
                       </td>
                       <td className="px-1 py-2 text-center">

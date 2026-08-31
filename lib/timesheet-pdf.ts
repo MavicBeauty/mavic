@@ -38,13 +38,14 @@ const ABSENCE_LABELS: Record<string, string> = {
   morning:   'Manana',
   afternoon: 'Tarde',
   all:       'Dia completo',
+  vacation:  'VACACIONES',
 };
 
 export interface DayEntry {
   day: number;
   entry1: string; exit1: string;
   entry2: string; exit2: string;
-  absence: 'none' | 'morning' | 'afternoon' | 'all';
+  absence: 'none' | 'morning' | 'afternoon' | 'all' | 'vacation';
   notes: string;
   ent_comp?: string;
   sal_comp?: string;
@@ -74,7 +75,7 @@ export interface TimesheetPDFParams {
 }
 
 function calcDailyHours(d: DayEntry): number {
-  if (d.absence === 'all' || !d.entry1 || !d.exit1) return 0;
+  if (d.absence === 'all' || d.absence === 'vacation' || !d.entry1 || !d.exit1) return 0;
   const [h1, m1] = d.entry1.split(':').map(Number);
   const [h2, m2] = d.exit1.split(':').map(Number);
   let h = h2 - h1 + (m2 - m1) / 60;
@@ -290,8 +291,8 @@ export async function generateTimesheetPDF({
     const DOW_LETTER = ['D','L','M','X','J','V','S'];
     const entry = days.find(d => d.day === dayNum);
 
-    // "Todo el día" — shade the row, then redraw its borders so the grid stays intact
-    if (entry?.absence === 'all') {
+    // "Todo el día" / "Vacaciones" — shade the row, then redraw its borders so the grid stays intact
+    if (entry?.absence === 'all' || entry?.absence === 'vacation') {
       page.drawRectangle({ x: L, y: rowBot, width: R - L, height: ROW_H, color: lgray });
       hLine(rowTop);
       hLine(rowBot);
@@ -301,9 +302,9 @@ export async function generateTimesheetPDF({
     cText(`${dayNum} ${DOW_LETTER[dow]}`, font, 6.5, COLS.dia, textY);
 
     if (entry) {
-      if (entry.absence === 'all') {
+      if (entry.absence === 'all' || entry.absence === 'vacation') {
         // Full-day absence: label goes in the AUSENCIA column only
-        cText(ABSENCE_LABELS.all, font, 6, COLS.ausencia, textY);
+        cText(ABSENCE_LABELS[entry.absence] || '', font, 6, COLS.ausencia, textY);
       } else {
         // Normal row or partial absence: show time columns + hours
         if (entry.entry1) cText(entry.entry1, font, 6.5, COLS.ent1, textY);
